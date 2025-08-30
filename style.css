@@ -1,0 +1,405 @@
+body {
+    font-family: sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    background-color: #f0f0f0;
+}
+
+/* ====== 並べ替え用の視覚効果 ====== */
+.home-screen.edit-mode .app-icon {
+    animation: jiggle 0.18s ease-in-out infinite alternate;
+    cursor: grab;
+}
+
+.app-icon.dragging {
+    animation: none !important;
+    opacity: 0.9;
+    cursor: grabbing;
+}
+
+.app-icon.placeholder {
+    pointer-events: none;
+}
+
+.app-icon.placeholder::before {
+    background: transparent !important;
+    border: 2px dashed rgba(255,255,255,0.5);
+    box-shadow: none;
+}
+
+.app-icon.placeholder span {
+    display: none;
+}
+
+.drag-ghost {
+    position: fixed;
+    top: 0;
+    left: 0;
+    transform: translate(-50%, -50%) scale(1.06);
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.95;
+    filter: drop-shadow(0 12px 22px rgba(0,0,0,0.35));
+}
+
+@keyframes jiggle {
+    from { transform: rotate(-1.4deg); }
+    to { transform: rotate(1.4deg); }
+}
+
+.main-page {
+    transition: opacity 0.5s ease-in-out;
+}
+
+.app-icon {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    border: none;
+    background: none;
+    cursor: pointer;
+    text-align: center;
+    padding: 10px;
+}
+
+.app-icon img {
+    display: block;
+    margin: 0 auto 5px;
+    width: 64px;
+    height: 64px;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.app-icon span {
+    font-size: 0.9em;
+    color: #333;
+    text-align: center;
+}
+
+.app-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: white;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    transform: translateY(100%);
+    transition: transform 0.5s ease-in-out;
+    visibility: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-container.active {
+    transform: translateY(0);
+    visibility: visible;
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background-color: #3498db;
+    color: white;
+}
+
+.app-header .app-title {
+    flex-grow: 1;
+    text-align: center;
+    font-size: 1.2em;
+}
+
+.app-header button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 2em;
+    cursor: pointer;
+}
+
+.app-content {
+    flex-grow: 1;
+    padding: 20px;
+    text-align: left;
+}
+
+/* アプリのコンテンツ領域をフレックスボックスにする */
+.app-content {
+    flex-grow: 1; /* 親要素の残りのスペースをすべて使う */
+    padding: 0; /* 余白をなくす */
+    display: flex; /* 子要素を柔軟に配置 */
+    flex-direction: column; /* 子要素を縦に並べる */
+}
+
+/* iframeをコンテンツ領域いっぱいに広げる */
+#embedded-site {
+    flex-grow: 1; /* 親要素の残りのスペースをすべて使う */
+    border: none; /* 枠線を消す */
+    width: 100%; /* 親要素の幅いっぱいに広げる */
+}
+
+/* ====== ここからスマホ風ホーム画面スタイル ====== */
+html, body {
+    height: 100%;
+}
+
+.main-page {
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    min-height: 100vh;
+}
+
+body {
+    background: radial-gradient(1200px 600px at 50% -200px, #dbeafe 0%, #f0f0f0 60%);
+}
+
+.phone {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    overflow: hidden;
+    box-shadow: none;
+    background: #0a0f2b;
+}
+
+.status-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    color: #fff;
+    font-size: 12px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    z-index: 2;
+}
+
+/* 画面左上の時刻・日付 */
+.top-left-datetime {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    z-index: 3;
+}
+.top-left-datetime #status-time { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+.top-left-datetime #status-date { font-size: 14px; font-weight: 600; opacity: 0.95; }
+
+.home-screen {
+    position: absolute;
+    inset: 0;
+    background: url('background.jpg') center/cover no-repeat fixed;
+    display: flex;
+    flex-direction: column;
+    padding: 48px 14px 112px;
+}
+
+/* ウィジェット機能は削除 */
+
+
+
+.app-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px 8px;
+    justify-items: stretch;
+    justify-content: stretch;
+}
+
+.app-icon {
+    width: 100%;
+    position: relative;
+    grid-row: auto;
+}
+
+/* ウィジェット機能は削除 */
+
+.app-icon span {
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    position: static;
+    display: block;
+    width: 50%;
+    font-size: 20px;
+    text-align: center;
+    margin: 6px auto 0;
+    line-height: 1.1;
+    pointer-events: none;
+}
+
+.dock {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    flex-wrap: nowrap;
+    padding: 6px 10px;
+    height: calc(((100vw - 3 * 8px) / 4 * 0.5) + 26px);
+    background: rgba(255,255,255,0.2);
+    border-radius: 14px;
+    box-shadow: inset 0 1px 2px rgba(255,255,255,0.25), 0 6px 16px rgba(0,0,0,0.35);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.dock .app-icon { width: calc((100vw - 3 * 8px) / 4 * 0.5); padding: 4px 0; }
+.dock .app-icon::before { width: 100%; }
+.dock .app-icon span {
+    display: block;
+    width: 100%;
+    font-size: 13px;
+    line-height: 1.1;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ====== スマホ風ここまで ====== */
+
+/* ====== アイコンをCSSで描画（画像は非表示） ====== */
+.app-icon {
+    position: relative;
+}
+
+.app-icon img {
+    display: block;
+    width: 50%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    margin: 0 auto 6px;
+    border-radius: 20px;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+
+.app-icon::before {
+    content: "";
+    display: block;
+    width: 50%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto 6px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #7dd3fc 0%, #2563eb 100%);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.25);
+    opacity: 0.92;
+}
+
+/* 画像がある場合はグラデーションタイルを非表示（:has サポート環境向け）*/
+.app-icon:has(img)::before { display: none; }
+
+/* グリッド内のアイコン色バリエーション */
+.app-grid .app-icon:nth-child(1)::before { background: linear-gradient(135deg, #93c5fd, #3b82f6); }
+.app-grid .app-icon:nth-child(2)::before { background: linear-gradient(135deg, #fca5a5, #ef4444); }
+.app-grid .app-icon:nth-child(3)::before { background: linear-gradient(135deg, #a5b4fc, #6366f1); }
+.app-grid .app-icon:nth-child(4)::before { background: linear-gradient(135deg, #fde68a, #f59e0b); }
+.app-grid .app-icon:nth-child(5)::before { background: linear-gradient(135deg, #86efac, #22c55e); }
+.app-grid .app-icon:nth-child(6)::before { background: linear-gradient(135deg, #f0abfc, #a21caf); }
+.app-grid .app-icon:nth-child(7)::before { background: linear-gradient(135deg, #fcd34d, #f97316); }
+.app-grid .app-icon:nth-child(8)::before { background: linear-gradient(135deg, #93c5fd, #0ea5e9); }
+
+/* ドック内のアイコン色 */
+.dock .app-icon:nth-child(1)::before { background: linear-gradient(135deg, #60a5fa, #2563eb); }
+.dock .app-icon:nth-child(2)::before { background: linear-gradient(135deg, #86efac, #16a34a); }
+.dock .app-icon:nth-child(3)::before { background: linear-gradient(135deg, #fde68a, #ca8a04); }
+.dock .app-icon:nth-child(4)::before { background: linear-gradient(135deg, #fca5a5, #dc2626); }
+
+/* ====== PC(大画面)ではタブレット横画面風レイアウト ====== */
+@media (min-width: 992px) {
+
+ 
+    .phone {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+    }
+
+    .status-bar {
+        height: 32px;
+        font-size: 14px;
+        padding: 0 16px;
+    }
+
+    .home-screen {
+        padding: 48px 24px 140px;
+    }
+
+    .app-grid {
+        grid-template-columns: repeat(8, 1fr);
+        grid-auto-rows: auto;
+        gap: 12px 12px;
+        justify-items: stretch;
+        justify-content: stretch;
+    }
+
+    .app-icon { width: 100%; grid-row: auto; }
+    .app-icon::before { border-radius: 22px; }
+
+    .app-icon span {
+        font-size: 0.95em;
+        width: 100%;
+        margin: 6px auto 0;
+        font-size: 20px;
+    }
+
+    .top-left-datetime #status-time { font-size: 24px; }
+    .top-left-datetime #status-date { font-size: 16px; }
+
+    .dock {
+        left: 20px;
+        right: 20px;
+        bottom: 16px;
+        padding: 8px 12px;
+        border-radius: 18px;
+        min-height: 72px;
+    }
+    /* ドックのアイコン幅をグリッドの見た目サイズに合わせる（8列の50%） */
+    .dock .app-icon { width: calc((100vw - 48px - 7 * 12px) / 8 * 0.5); }
+}
+
+/* スマホ幅では左右の余白をなくしてグリッドを端まで広げる */
+@media (max-width: 600px) {
+    .home-screen { padding: 48px 0 112px; }
+    .app-grid {
+        width: 100%;
+        justify-content: space-between;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px 12px;
+    }
+    .app-icon img,
+    .app-icon::before {
+        width: 80%;
+    }
+    .app-icon span {
+        width: 100%;
+        font-size: 18px;
+    }
+}
+
+/* タブレット相当（4列・左右14pxパディング）でもドックのアイコンサイズを一致 */
+@media (min-width: 601px) and (max-width: 991px) {
+    .dock .app-icon { width: calc((100vw - 28px - 3 * 8px) / 4 * 0.5); }
+}

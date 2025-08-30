@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アプリ風サイト</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="main-page" id="main-page">
+        <div class="phone">
+            <div class="home-screen">
+                <div class="top-left-datetime">
+                    <span id="status-time">--:--</span>
+                    <span id="status-date">----</span>
+                </div>
+                <div class="app-grid">
+                    <button id="open-app-button" class="app-icon" data-url="HRFM00.github.io-main/index.html">
+                        <img src="icon/39outlet.jpg" alt="アプリのアイコン">
+                        <span>店舗管理</span>
+                    </button>
+                    <button class="app-icon" data-url="HRFM00-Incom.github.io-main\index.html">
+                        <img src="icon\incom.jpg" alt="インカム">
+                        <span>インカム</span>
+                    </button>
+                    <button class="app-icon" data-url="invetory\index.html">
+                        <img src="icon\inventory.png" alt="商品登録">
+                        <span>商品登録</span>
+                    </button>
+                    <button class="app-icon" data-url="https://example.com/memo">
+                        <img src="icon\memo.jpg" alt="メモ">
+                        <span>メモ</span>
+                    </button>
+                    <button class="app-icon" data-url="https://example.com/memo">
+                        <img src="icon\item.jpg" alt="商品紹介作成">
+                        <span>商品紹介作成</span>
+                    </button>
+                    <button class="app-icon" data-url="https://example.com/memo">
+                        <img src="icon\pop.jpg" alt="商品紹介作成">
+                        <span>ポップ作成</span>
+                    </button>
+                    <button class="app-icon" data-url="https://www.google.com/">
+                        <img src="icon\google.png" alt="Google">
+                        <span>Google</span>
+                    </button>
+                    <button class="app-icon" data-url="https://amazon.co.jp">
+                        <img src="icon\amazon.png" alt="Amazon">
+                        <span>Amazon</span>
+                    </button>
+                </div>
+                <div class="dock">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container" id="app-container">
+        <div class="app-header">
+            <button id="close-app-button">×</button>
+            <span class="app-title"></span>
+        </div>
+        <div class="app-content">
+            <iframe id="embedded-site" src="HRFM00.github.io-main/index.html" width="100%" height="400" frameborder="0"></iframe>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

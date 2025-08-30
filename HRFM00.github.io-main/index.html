@@ -1,0 +1,2607 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>39Outlet店舗管理システム</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="budget-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="home-styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- SheetJSライブラリ（データ読み込み用） -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- ExcelJS（セル色などスタイル取得用） -->
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+    <script>
+        // ライブラリ読み込み確認
+        if (typeof window.XLSX === 'undefined') {
+            console.error('SheetJSライブラリが読み込まれていません');
+        } else {
+            console.log('SheetJSライブラリが正常に読み込まれました');
+            console.log('バージョン:', window.XLSX.version);
+        }
+        if (typeof window.ExcelJS === 'undefined') {
+            console.error('ExcelJSライブラリが読み込まれていません');
+        } else {
+            console.log('ExcelJSライブラリが正常に読み込まれました');
+        }
+    </script>
+    <script>
+        // Supabaseライブラリが読み込まれたことを確認し、グローバルクライアントを初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof window.supabase === 'undefined') {
+                console.error('Supabaseライブラリが読み込まれていません');
+            } else {
+                console.log('Supabaseライブラリが正常に読み込まれました');
+                // グローバルなSupabaseクライアントインスタンスを初期化（一度だけ）
+                if (typeof createSupabaseClient === 'function' && !window.supabaseClient) {
+                    window.supabaseClient = createSupabaseClient();
+                }
+            }
+        });
+    </script>
+</head>
+<body>
+    <!-- ログイン画面 -->
+    <div class="auth-container" id="auth-container" style="display: none;">
+        <div class="auth-card">
+            <h2><i class="fas fa-sign-in-alt"></i> ログイン</h2>
+            <div class="message" id="login-message"></div>
+            <form class="auth-form" id="login-form">
+                <div class="form-group">
+                    <label for="login-username">ユーザー名</label>
+                    <input type="text" id="login-username" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">パスワード</label>
+                    <input type="password" id="login-password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i>
+                    ログイン
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <nav class="navbar" id="navbar" style="display: none;">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-store"></i>
+                <span>39Outlet店舗管理システム</span>
+            </div>
+            <div class="nav-menu">
+                <!-- 通知アイコン -->
+                <div class="notification-icon-wrapper">
+                    <button class="notification-btn" id="notification-btn">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge hidden" id="notification-badge">0</span>
+                    </button>
+                    <div class="notification-dropdown" id="notification-dropdown">
+                        <div class="notification-header">
+                            <h3><i class="fas fa-bell"></i> 通知</h3>
+                            <button class="clear-all-btn" id="clear-all-notifications">
+                                <i class="fas fa-trash"></i> すべて削除
+                            </button>
+                        </div>
+                        <div class="notification-list" id="notification-list">
+                            <div class="no-notifications">
+                                <i class="fas fa-bell-slash"></i>
+                                <p>通知はありません</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- アカウントアイコン -->
+                <div class="account-icon-wrapper">
+                    <button class="account-btn" id="account-btn" onclick="toggleAccountDropdown()">
+                        <i class="fas fa-user-circle"></i>
+                    </button>
+                    <div class="account-dropdown" id="account-dropdown">
+                        <div class="user-info-header">
+                            <i class="fas fa-user-circle"></i>
+                            <span id="user-name">ユーザー名</span>
+                        </div>
+                        <a href="#mypage" class="nav-link" onclick="navigateToMypage()">
+                            <i class="fas fa-user-circle"></i>
+                            マイページ
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" onclick="logout(event)" class="nav-link logout-link">
+                            <i class="fas fa-sign-out-alt"></i>
+                            ログアウト
+                        </a>
+                    </div>
+                </div>
+                
+                
+                
+                <!-- ナビゲーションメニュー -->
+                <div class="nav-menu-wrapper">
+                    <button class="nav-menu-btn" id="nav-menu-btn" onclick="toggleNavMenu()">
+                        <i class="fas fa-bars"></i>
+                        <span>メニュー</span>
+                    </button>
+                    <div class="nav-menu-dropdown" id="nav-menu-dropdown">
+                        <a href="#home" class="nav-link active" onclick="showPage('#home')">
+                            <i class="fas fa-home"></i>
+                            <span>ホーム</span>
+                        </a>
+                        <a href="#shift-management" class="nav-link" onclick="showPage('#shift-management')">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>シフト管理</span>
+                        </a>
+                        <a href="#inventory" class="nav-link" onclick="showPage('#inventory')">
+                            <i class="fas fa-boxes"></i>
+                            <span>商品管理</span>
+                        </a>
+                        <a href="#budget" class="nav-link" onclick="showPage('#budget')">
+                            <i class="fas fa-chart-line"></i>
+                            <span>予算管理</span>
+                        </a>
+                        <a href="#tools" class="nav-link" onclick="showPage('#tools')">
+                            <i class="fas fa-tools"></i>
+                            <span>ツール</span>
+                        </a>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content" id="main-content" style="display: none;">
+        <!-- ホーム画面 -->
+        <section id="home" class="page active">
+            <div class="container">
+                <div class="welcome-section">
+                    <h1 class="welcome-title">
+                        <i class="fas fa-store"></i>
+                        39Outlet店舗管理システム
+                    </h1>
+                    <p class="welcome-subtitle">効率的な店舗運営をサポートします</p>
+                </div>
+
+                <div class="features-grid">
+                    <div class="feature-card" onclick="navigateToShiftManagement()">
+                        <i class="fas fa-calendar-alt"></i>
+                        <h3>シフト管理</h3>
+                        <p>従業員のシフトを効率的に管理</p>
+                    </div>
+                    <div class="feature-card" onclick="navigateToInventory()">
+                        <i class="fas fa-boxes"></i>
+                        <h3>商品管理</h3>
+                        <p>在庫状況をリアルタイムで把握</p>
+                    </div>
+                    <div class="feature-card" onclick="navigateToBudget()">
+                        <i class="fas fa-chart-line"></i>
+                        <h3>予算管理</h3>
+                        <p>店舗の収益と支出を管理</p>
+                    </div>
+                    <div class="feature-card" onclick="navigateToTools()">
+                        <i class="fas fa-tools"></i>
+                        <h3>ツール</h3>
+                        <p>便利なツールを活用</p>
+                    </div>
+                </div>
+
+                <div class="bulletin-board">
+                    <div class="bulletin-header-section">
+                        <h2><i class="fas fa-bullhorn"></i> 掲示板</h2>
+                        <div class="bulletin-tabs">
+                            <button class="tab-btn active" data-tab="manual">
+                                <i class="fas fa-book"></i>
+                                マニュアル
+                            </button>
+                            <button class="tab-btn" data-tab="complaint">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                クレーム
+                            </button>
+                            <button class="tab-btn" data-tab="refund">
+                                <i class="fas fa-undo"></i>
+                                返品返金
+                            </button>
+                            <button class="tab-btn" data-tab="hold">
+                                <i class="fas fa-box"></i>
+                                取り置き
+                            </button>
+                            <button class="tab-btn" data-tab="delivery">
+                                <i class="fas fa-truck"></i>
+                                納品
+                            </button>
+                            <button class="tab-btn" data-tab="registration">
+                                <i class="fas fa-user-plus"></i>
+                                登録依頼
+                            </button>
+                            <button class="tab-btn" data-tab="other">
+                                <i class="fas fa-comments"></i>
+                                その他連絡
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="bulletin-content">
+                        <!-- クレーム掲示板 -->
+                        <div class="tab-content" id="complaint">
+                            <div class="post-form-section">
+                                <button class="post-form-toggle" data-form="complaint">
+                                    <i class="fas fa-plus"></i> 新規投稿
+                                </button>
+                                <div class="post-form" id="complaint-form">
+                                    <h3>クレーム投稿フォーム</h3>
+                                    <form>
+                                        <div class="form-group">
+                                            <label for="complaint-title">タイトル *</label>
+                                            <input type="text" id="complaint-title" name="complaint-title" required>
+                                        </div>
+                                        <div class="form-group" style="display: none;">
+                                            <label for="complaint-staff">担当者</label>
+                                            <input type="text" id="complaint-staff" name="complaint-staff">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="complaint-customer">お客様の名前 *</label>
+                                            <input type="text" id="complaint-customer" name="complaint-customer" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="complaint-content">内容 *</label>
+                                            <textarea id="complaint-content" name="complaint-content" rows="4" required></textarea>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="complaint-photo">写真（複数選択可能）</label>
+                                            <input type="file" id="complaint-photo" name="complaint-photo" accept="image/*" multiple>
+                                            <div class="photo-preview" id="complaint-photo-preview"></div>
+                                            <small class="form-help">※ ファイルサイズは50MB以下、JPEG、PNG、GIF形式に対応</small>
+                                        </div>
+                                        <div class="form-actions">
+                                            <button type="submit" class="submit-btn">投稿する</button>
+                                            <button type="button" class="cancel-btn">キャンセル</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="bulletin-items">
+                                <!-- データベースから取得した投稿がここに表示されます -->
+                            </div>
+                        </div>
+
+                        <!-- 返品返金掲示板 -->
+                        <div class="tab-content" id="refund">
+                            <div class="post-form-section">
+                                <button class="post-form-toggle" data-form="refund">
+                                    <i class="fas fa-plus"></i> 新規投稿
+                                </button>
+                                <div class="post-form" id="refund-form">
+                                    <h3>返品返金投稿フォーム</h3>
+                                    <form>
+                                        <div class="form-group">
+                                            <label for="refund-title">タイトル *</label>
+                                            <input type="text" id="refund-title" name="refund-title" required>
+                                        </div>
+                                        <div class="form-group" style="display: none;">
+                                            <label for="refund-staff">担当者</label>
+                                            <input type="text" id="refund-staff" name="refund-staff">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="refund-customer">お客様の名前 *</label>
+                                            <input type="text" id="refund-customer" name="refund-customer" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="refund-content">内容 *</label>
+                                            <textarea id="refund-content" name="refund-content" rows="4" required></textarea>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="refund-photo">写真（複数選択可能）</label>
+                                            <input type="file" id="refund-photo" name="refund-photo" accept="image/*" multiple>
+                                            <div class="photo-preview" id="refund-photo-preview"></div>
+                                            <small class="form-help">※ ファイルサイズは50MB以下、JPEG、PNG、GIF形式に対応</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="refund-visit-date">来店日時 *</label>
+                                            <input type="datetime-local" id="refund-visit-date" name="refund-visit-date" required>
+                                        </div>
+                                        <div class="form-actions">
+                                            <button type="submit" class="submit-btn">投稿する</button>
+                                            <button type="button" class="cancel-btn">キャンセル</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="bulletin-items">
+                                <!-- データベースから取得した投稿がここに表示されます -->
+                            </div>
+                        </div>
+
+                        <!-- 取り置き掲示板 -->
+                        <div class="tab-content" id="hold">
+                            <div class="post-form-section">
+                                <button class="post-form-toggle" data-form="hold">
+                                    <i class="fas fa-plus"></i> 新規投稿
+                                </button>
+                                <div class="post-form" id="hold-form">
+                                    <h3>取り置き投稿フォーム</h3>
+                                    <form>
+                                        <div class="form-group">
+                                            <label for="hold-title">タイトル *</label>
+                                            <input type="text" id="hold-title" name="hold-title" required>
+                                        </div>
+                                        <div class="form-group" style="display: none;">
+                                            <label for="hold-staff">担当者</label>
+                                            <input type="text" id="hold-staff" name="hold-staff">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="hold-customer">お客様の名前 *</label>
+                                            <input type="text" id="hold-customer" name="hold-customer" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="hold-photo">取り置き品の写真（複数選択可能）</label>
+                                            <input type="file" id="hold-photo" name="hold-photo" accept="image/*" multiple>
+                                            <div class="photo-preview" id="hold-photo-preview"></div>
+                                            <small class="form-help">※ ファイルサイズは50MB以下、JPEG、PNG、GIF形式に対応</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="hold-visit-date">来店日時 *</label>
+                                            <input type="datetime-local" id="hold-visit-date" name="hold-visit-date" required>
+                                        </div>
+                                        <div class="form-actions">
+                                            <button type="submit" class="submit-btn">投稿する</button>
+                                            <button type="button" class="cancel-btn">キャンセル</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="bulletin-items">
+                                <!-- データベースから取得した投稿がここに表示されます -->
+                            </div>
+                        </div>
+
+                        <!-- 納品掲示板 -->
+                        <div class="tab-content" id="delivery">
+                            <div class="post-form-section">
+                                <button class="post-form-toggle" data-form="delivery">
+                                    <i class="fas fa-plus"></i> 新規投稿
+                                </button>
+                                <div class="post-form" id="delivery-form">
+                                    <h3>納品投稿フォーム</h3>
+                                    <form>
+                                        <div class="form-group" style="display: none;">
+                                            <label for="delivery-staff">担当者</label>
+                                            <input type="text" id="delivery-staff" name="delivery-staff">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="delivery-equipment">欲しい備品</label>
+                                            <textarea id="delivery-equipment" name="delivery-equipment" rows="3" placeholder="必要な備品があれば記入してください"></textarea>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="delivery-products">欲しい商品</label>
+                                            <textarea id="delivery-products" name="delivery-products" rows="3" placeholder="必要な商品があれば記入してください"></textarea>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="delivery-photo">棚の写真（複数選択可能）</label>
+                                            <input type="file" id="delivery-photo" name="delivery-photo" accept="image/*" multiple>
+                                            <div class="photo-preview" id="delivery-photo-preview"></div>
+                                            <small class="form-help">※ ファイルサイズは50MB以下、JPEG、PNG、GIF形式に対応</small>
+                                        </div>
+                                        <div class="form-actions">
+                                            <button type="submit" class="submit-btn">投稿する</button>
+                                            <button type="button" class="cancel-btn">キャンセル</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="bulletin-items">
+                                <!-- データベースから取得した投稿がここに表示されます -->
+                            </div>
+                        </div>
+
+                        <!-- 登録依頼掲示板 -->
+                        <div class="tab-content" id="registration">
+                            <div class="post-form-section">
+                                <button class="post-form-toggle" data-form="registration">
+                                    <i class="fas fa-plus"></i> 新規投稿
+                                </button>
+                                <div class="post-form" id="registration-form">
+                                    <h3>登録依頼投稿フォーム</h3>
+                                    <form>
+                                        <div class="form-group">
+                                            <label for="registration-photo">写真（複数選択可能）*</label>
+                                            <input type="file" id="registration-photo" name="registration-photo" accept="image/*" multiple required>
+                                            <div class="photo-preview" id="registration-photo-preview"></div>
+                                            <small class="form-help">※ ファイルサイズは50MB以下、JPEG、PNG、GIF形式に対応</small>
+                                        </div>
+                                        <div class="form-actions">
+                                            <button type="submit" class="submit-btn">投稿する</button>
+                                            <button type="button" class="cancel-btn">キャンセル</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="bulletin-items">
+                                <!-- データベースから取得した投稿がここに表示されます -->
+                            </div>
+                        </div>
+
+                        <!-- その他連絡等掲示板 -->
+                        <div class="tab-content" id="other">
+                            <div class="post-form-section">
+                                <button class="post-form-toggle" data-form="other">
+                                    <i class="fas fa-plus"></i> 新規投稿
+                                </button>
+                                <div class="post-form" id="other-form">
+                                    <h3>その他連絡投稿フォーム</h3>
+                                    <form>
+                                        <div class="form-group">
+                                            <label for="other-title">タイトル *</label>
+                                            <input type="text" id="other-title" name="other-title" required>
+                                        </div>
+                                        <div class="form-group" style="display: none;">
+                                            <label for="other-author">作成者</label>
+                                            <input type="text" id="other-author" name="other-author">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="other-content">内容 *</label>
+                                            <textarea id="other-content" name="other-content" rows="4" required></textarea>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="other-photo">写真（複数選択可能）</label>
+                                            <input type="file" id="other-photo" name="other-photo" accept="image/*" multiple>
+                                            <div class="photo-preview" id="other-photo-preview"></div>
+                                            <small class="form-help">※ ファイルサイズは50MB以下、JPEG、PNG、GIF形式に対応</small>
+                                        </div>
+                                        <div class="form-actions">
+                                            <button type="submit" class="submit-btn">投稿する</button>
+                                            <button type="button" class="cancel-btn">キャンセル</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="bulletin-items">
+                                <!-- データベースから取得した投稿がここに表示されます -->
+                            </div>
+                        </div>
+
+                        <!-- マニュアル掲示板 -->
+                        <div class="tab-content active" id="manual">
+                            <div class="post-form-section">
+                                <button class="post-form-toggle" data-form="manual">
+                                    <i class="fas fa-plus"></i> 新規投稿
+                                </button>
+                                <div class="post-form" id="manual-form">
+                                    <h3>マニュアル投稿フォーム</h3>
+                                    <form>
+                                        <div class="form-group">
+                                            <label for="manual-title">タイトル *</label>
+                                            <input type="text" id="manual-title" name="manual-title" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="manual-content">内容 *</label>
+                                            <textarea id="manual-content" name="manual-content" rows="4" required></textarea>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="manual-photo">写真（複数選択可能）</label>
+                                            <input type="file" id="manual-photo" name="manual-photo" accept="image/*" multiple>
+                                            <div class="photo-preview" id="manual-photo-preview"></div>
+                                            <small class="form-help">※ ファイルサイズは50MB以下、JPEG、PNG、GIF形式に対応</small>
+                                        </div>
+                                        <div class="form-actions">
+                                            <button type="submit" class="submit-btn">投稿する</button>
+                                            <button type="button" class="cancel-btn">キャンセル</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            <div class="bulletin-items">
+                                <!-- データベースから取得した投稿がここに表示されます -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- シフト管理画面 -->
+        <section id="shift-management" class="page">
+            <div class="container">
+                <h2><i class="fas fa-calendar-alt"></i> シフト管理</h2>
+                
+                <!-- タブナビゲーション -->
+                <div class="shift-tabs">
+                    <button class="shift-tab active" onclick="switchShiftTab('register')">
+                        <i class="fas fa-upload"></i>
+                        シフト登録
+                    </button>
+                    <button class="shift-tab" onclick="switchShiftTab('view')">
+                        <i class="fas fa-eye"></i>
+                        シフト確認
+                    </button>
+                    <button class="shift-tab" onclick="switchShiftTab('schedule')">
+                        <i class="fas fa-clock"></i>
+                        タイムスケジュール
+                    </button>
+                    <button class="shift-tab" onclick="switchShiftTab('schedule-check')">
+                        <i class="fas fa-calendar-check"></i>
+                        タイムスケジュール確認
+                    </button>
+                    <button class="shift-tab" onclick="switchShiftTab('substitution')">
+                        <i class="fas fa-exchange-alt"></i>
+                        代打依頼
+                    </button>
+                    <button class="shift-tab" onclick="switchShiftTab('recruit')">
+                        <i class="fas fa-bullhorn"></i>
+                        シフト募集
+                    </button>
+                    <button class="shift-tab" onclick="switchShiftTab('submit')">
+                        <i class="fas fa-paper-plane"></i>
+                        シフト提出
+                    </button>
+                    <button class="shift-tab" onclick="switchShiftTab('submitted')">
+                        <i class="fas fa-check-circle"></i>
+                        提出シフト確認
+                    </button>
+                </div>
+
+                <!-- シフト登録機能 -->
+                <div id="shift-register" class="shift-content active">
+                    <div class="upload-area">
+                        <div class="drop-zone" id="dropZone">
+                            <div class="drop-zone-icon">📊</div>
+                            <h3>エクセルファイルをアップロード</h3>
+                            <p>ドラッグ&ドロップまたはクリックしてエクセルファイルを選択してください</p>
+                            <button class="upload-btn" id="fileSelectBtn">
+                                エクセルファイルを選択
+                            </button>
+                            <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls" multiple>
+                        </div>
+
+                        <div class="selected-files" id="selectedFiles" style="display: none;">
+                            <h3>選択されたファイル</h3>
+                            <div id="fileList"></div>
+                            <button class="upload-all-btn" id="uploadAllBtn" onclick="processExcelFiles()">
+                                エクセルファイルを解析・アップロード
+                            </button>
+                        </div>
+
+                        <div class="excel-preview" id="excelPreview">
+                            <h3>エクセルデータプレビュー</h3>
+                            <div class="sheet-selector">
+                                <label for="sheetSelect">シートを選択:</label>
+                                <select id="sheetSelect" onchange="changeSheet()">
+                                    <option value="">シートを選択してください</option>
+                                </select>
+                            </div>
+                            <div id="tableContainer"></div>
+                            <div class="column-mapping" id="columnMapping" style="display: none;">
+                                <h4>データベース列マッピング</h4>
+                                <div id="mappingContainer"></div>
+                                <button class="process-btn" onclick="saveToDatabase()">データベースに保存</button>
+                            </div>
+                        </div>
+
+                        <div class="loading" id="loading">
+                            <div class="spinner"></div>
+                            <p>処理中...</p>
+                        </div>
+
+                        <div class="success-message" id="successMessage">
+                            処理が正常に完了しました！
+                        </div>
+
+                        <div class="error-message" id="errorMessage">
+                            処理中にエラーが発生しました。
+                        </div>
+
+                        <div class="uploaded-files" id="uploadedFiles" style="display: none;">
+                            <h3>アップロード済みファイル</h3>
+                            <div id="uploadedFileList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- シフト確認機能 -->
+                <div id="shift-view" class="shift-content">
+                    <div class="controls">
+                        <div class="filter-section">
+                            <div class="filter-group">
+                                <label for="nameFilter">名前</label>
+                                <select id="nameFilter">
+                                    <option value="">すべて</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="dateFilter">日付</label>
+                                <input type="date" id="dateFilter">
+                            </div>
+                            <div class="filter-group">
+                                <label for="colorFilter">店舗</label>
+                                <select id="colorFilter">
+                                    <option value="">すべて</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="viewMode">表示モード</label>
+                                <select id="viewMode" onchange="changeViewMode()">
+                                    <option value="daily">日別表示</option>
+                                    <option value="monthly">月表示</option>
+                                </select>
+                            </div>
+                            <div class="filter-group" id="weekNavigation" style="display: none;">
+                                <label>週の切り替え</label>
+                                <div class="week-nav-buttons">
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="changeWeek(-1)">
+                                        <i class="fas fa-chevron-left"></i> 前週
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="resetToCurrentWeek()">
+                                        今週
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="changeWeek(1)">
+                                        次週 <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button class="export-btn" onclick="exportData()">
+                                📊 CSVエクスポート
+                            </button>
+                            <button class="delete-btn" onclick="deleteData()">
+                                🗑️ 全データ削除
+                            </button>
+                        </div>
+
+                        <div class="stats" id="stats">
+                            <!-- 統計情報がここに表示されます -->
+                        </div>
+                    </div>
+
+
+                    <div class="content">
+                        <div id="loading" class="loading" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>データを読み込み中...</p>
+                        </div>
+
+                        <div id="errorMessage" class="error-message" style="display: none;">
+                            エラーメッセージ
+                        </div>
+
+                        <div id="successMessage" class="success-message" style="display: none;">
+                            成功メッセージ
+                        </div>
+
+                        <div id="shiftData">
+                            <!-- シフトデータがここに表示されます -->
+                        </div>
+
+                        <div id="pagination" class="pagination" style="display: none;">
+                            <!-- ページネーションがここに表示されます -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- タイムスケジュール機能 -->
+                <div id="shift-schedule" class="shift-content">
+                    <div class="schedule-container">
+                        <div class="schedule-header">
+                            <h3><i class="fas fa-clock"></i> 入間店タイムスケジュール作成</h3>
+                            <p>年、月、日を選択して入間店のタイムスケジュールを作成し、出勤者にタスクを割り当てます</p>
+                        </div>
+                        
+                        <div class="schedule-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="schedule-year">年 <span class="required">*</span></label>
+                                    <select id="schedule-year" required>
+                                        <option value="">年を選択</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="schedule-month">月 <span class="required">*</span></label>
+                                    <select id="schedule-month" required>
+                                        <option value="">月を選択</option>
+                                        <option value="1">1月</option>
+                                        <option value="2">2月</option>
+                                        <option value="3">3月</option>
+                                        <option value="4">4月</option>
+                                        <option value="5">5月</option>
+                                        <option value="6">6月</option>
+                                        <option value="7">7月</option>
+                                        <option value="8">8月</option>
+                                        <option value="9">9月</option>
+                                        <option value="10">10月</option>
+                                        <option value="11">11月</option>
+                                        <option value="12">12月</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="schedule-day">日 <span class="required">*</span></label>
+                                    <select id="schedule-day" required>
+                                        <option value="">日を選択</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-primary" onclick="generateSchedule()">
+                                    <i class="fas fa-calendar-plus"></i>
+                                    今日のスケジュール作成
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="loadSchedule()">
+                                    <i class="fas fa-search"></i>
+                                    既存スケジュール確認
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="schedule-result" class="schedule-result" style="display: none;">
+                            <div class="schedule-info">
+                                <h4>出勤者一覧</h4>
+                                <div id="attendance-list">
+                                    <!-- 出勤者リストがここに表示されます -->
+                                </div>
+                            </div>
+                            
+                            <div class="schedule-tasks">
+                                <h4>タスク割り当て</h4>
+                                <div id="task-assignment">
+                                    <!-- タスク割り当てフォームがここに表示されます -->
+                                </div>
+                            </div>
+                            
+                            <div class="schedule-actions">
+                                <button type="button" class="btn btn-success" onclick="saveSchedule()">
+                                    <i class="fas fa-save"></i>
+                                    スケジュール保存
+                                </button>
+                                <button type="button" class="btn btn-info" onclick="exportSchedule()">
+                                    <i class="fas fa-download"></i>
+                                    スケジュールエクスポート
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="schedule-loading" class="loading" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>スケジュールを処理中...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- シフト提出機能 -->
+                <div id="shift-submit" class="shift-content" style="display: none;">
+                    <div class="submit-container" style="display: block;">
+                        <div class="submit-header">
+                            <h3><i class="fas fa-paper-plane"></i> シフト提出</h3>
+                            <p>希望するシフトを提出してください</p>
+                        </div>
+                        
+                        <div class="submit-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="submit-name">名前 <span class="required">*</span></label>
+                                    <input type="text" id="submit-name" required readonly aria-readonly="true" title="ログイン中の氏名が自動入力されます">
+                                </div>
+                                <div class="form-group">
+                                    <label for="submit-year">年 <span class="required">*</span></label>
+                                    <select id="submit-year" required>
+                                        <option value="">年を選択</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="submit-month">月 <span class="required">*</span></label>
+                                    <select id="submit-month" required>
+                                        <option value="">月を選択</option>
+                                        <option value="1">1月</option>
+                                        <option value="2">2月</option>
+                                        <option value="3">3月</option>
+                                        <option value="4">4月</option>
+                                        <option value="5">5月</option>
+                                        <option value="6">6月</option>
+                                        <option value="7">7月</option>
+                                        <option value="8">8月</option>
+                                        <option value="9">9月</option>
+                                        <option value="10">10月</option>
+                                        <option value="11">11月</option>
+                                        <option value="12">12月</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div id="time-input-section" style="display: none;">
+                                <!-- 一括入力フォームと時間入力行がここに表示されます -->
+                                <div id="time-input-rows"></div>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-primary" onclick="submitShift()">
+                                    <i class="fas fa-paper-plane"></i>
+                                    シフト提出
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="checkSubmitStatus()">
+                                    <i class="fas fa-search"></i>
+                                    提出状況確認
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="submit-status" class="submit-status" style="display: none;">
+                            <h3>提出状況</h3>
+                            <div id="submit-status-content">
+                                <!-- 提出状況がここに表示されます -->
+                            </div>
+                        </div>
+                        
+                        <div id="my-shift-details" class="my-shift-details" style="display: none;">
+                            <h3>自分のシフト詳細</h3>
+                            <div class="my-shift-controls">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="my-shift-year">年</label>
+                                        <select id="my-shift-year">
+                                            <option value="">年を選択</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="my-shift-month">月</label>
+                                        <select id="my-shift-month">
+                                            <option value="">月を選択</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="my-shift-details-content">
+                                <!-- 自分のシフト詳細がここに表示されます -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- タイムスケジュール確認機能 -->
+                <div id="shift-schedule-check" class="shift-content" style="display: none;">
+                    <div class="schedule-check-container" style="display: block;">
+                        <div class="schedule-check-header">
+                            <h3><i class="fas fa-calendar-check"></i> タイムスケジュール確認</h3>
+                            <p>指定した日付のタイムスケジュールを確認できます</p>
+                        </div>
+                        
+                        <div class="schedule-check-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="schedule-check-date">確認日付 <span class="required">*</span></label>
+                                    <input type="date" id="schedule-check-date" required>
+                                </div>
+                                <div class="form-group">
+                                    <button type="button" class="btn btn-primary" onclick="loadScheduleForDate()">
+                                        <i class="fas fa-search"></i>
+                                        スケジュール確認
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="schedule-check-result" class="schedule-check-result" style="display: none;">
+                            <div class="schedule-info">
+                                <h4>タイムスケジュール詳細</h4>
+                                <div id="schedule-check-list">
+                                    <!-- スケジュール詳細がここに表示されます -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="schedule-check-loading" class="loading" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>スケジュールを読み込み中...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 代打依頼機能 -->
+                <div id="shift-substitution" class="shift-content" style="display: none;">
+                    <div class="substitution-container" style="display: block;">
+                        <div class="substitution-header">
+                            <h3><i class="fas fa-exchange-alt"></i> 代打依頼</h3>
+                            <p>シフトの代打を依頼したり、立候補したりできます</p>
+                        </div>
+
+                
+                        
+                        <!-- シフト検索機能（自動：ログインユーザー） -->
+                        <div class="schedule-search-section">
+                            <h4><i class="fas fa-search"></i> あなたのシフト</h4>
+                            <p>ログイン中のアカウント名のシフトを自動表示します</p>
+                            
+                            <div id="substitution-search-result" class="search-result" style="display: none;">
+                                <div class="search-info">
+                                    <h4>シフト一覧</h4>
+                                    <div id="substitution-search-list">
+                                        <!-- 検索結果がここに表示されます -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="substitution-search-loading" class="loading" style="display: none;">
+                                <div class="spinner"></div>
+                                <p>シフトを読み込み中...</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 代打依頼作成フォーム -->
+                        <div class="substitution-form-section">
+                            <h4><i class="fas fa-plus"></i> 代打依頼作成</h4>
+                            <form id="substitution-request-form" class="substitution-form">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="substitution-time-start">開始時間</label>
+                                        <input type="time" id="substitution-time-start">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="substitution-time-end">終了時間</label>
+                                        <input type="time" id="substitution-time-end">
+                                    </div>
+                                </div>
+                                 <!-- 選択したシフトの日付を保持する隠しフィールド -->
+                                 <input type="hidden" id="substitution-shift-date">
+                                <div class="form-group">
+                                    <label for="substitution-reason">依頼理由</label>
+                                    <textarea id="substitution-reason" rows="3" placeholder="代打を依頼する理由を記入してください"></textarea>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-paper-plane"></i>
+                                        代打依頼を投稿
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- 代打依頼一覧 -->
+                        <div class="substitution-list-section">
+                            <h4><i class="fas fa-list"></i> 代打依頼一覧</h4>
+                            <div class="substitution-filters">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="substitution-status-filter">ステータス</label>
+                                        <select id="substitution-status-filter" onchange="filterSubstitutionRequests()">
+                                            <option value="">すべて</option>
+                                            <option value="waiting">立候補待ち</option>
+                                            <option value="pending">承認待ち</option>
+                                            <option value="approved">承認済み</option>
+                                            <option value="rejected">却下</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="substitution-date-filter">日付</label>
+                                        <input type="date" id="substitution-date-filter" onchange="filterSubstitutionRequests()">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="substitution-requests-list" class="substitution-requests">
+                                <!-- 代打依頼一覧がここに表示されます -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- シフト募集（再実装） → 代打依頼の隣へ独立配置 -->
+                <div id="shift-recruit" class="shift-content" style="display: none;">
+                    <div class="recruit2-container" style="display: block;">
+                        <div class="recruit2-header">
+                            <h3><i class="fas fa-bullhorn"></i> シフト募集</h3>
+                            <p>管理者/開発者は募集の作成・承認が可能。スタッフは立候補できます。</p>
+                        </div>
+
+                        <div class="recruit2-create" id="recruit2-create" style="display: none;">
+                            <h4><i class="fas fa-plus"></i> 募集作成</h4>
+                            <form id="recruit2-form">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="recruit2-date">日付</label>
+                                        <input type="date" id="recruit2-date" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="recruit2-start">開始</label>
+                                        <input type="time" id="recruit2-start" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="recruit2-end">終了</label>
+                                        <input type="time" id="recruit2-end" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="recruit2-quota">人数</label>
+                                        <input type="number" id="recruit2-quota" min="1" value="1" required>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="recruit2-note">補足（任意）</label>
+                                    <textarea id="recruit2-note" rows="2"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> 募集を作成</button>
+                            </form>
+                        </div>
+
+                        <div class="recruit2-list">
+                            <h4><i class="fas fa-list"></i> 募集中のシフト</h4>
+                            <div id="recruit2-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 提出シフト確認機能 -->
+                <div id="shift-submitted" class="shift-content" style="display: none;">
+                    <div class="submitted-container" style="display: block;">
+                        <div class="submitted-header">
+                            <h3><i class="fas fa-check-circle"></i> 提出シフト確認</h3>
+                            <p>従業員から提出されたシフトを確認・承認します</p>
+                        </div>
+                        
+                        <div class="submitted-controls">
+                            <div class="filter-section">
+                                <div class="filter-group">
+                                    <label for="submitted-name">名前</label>
+                                    <select id="submitted-name">
+                                        <option value="">すべて</option>
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="submitted-year">年</label>
+                                    <select id="submitted-year">
+                                        <option value="">年を選択</option>
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="submitted-month">月</label>
+                                    <select id="submitted-month">
+                                        <option value="">月を選択</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="action-buttons">
+                                <button class="btn btn-primary" onclick="exportSubmittedData()">
+                                    <i class="fas fa-download"></i>
+                                    エクスポート
+                                </button>
+                                <button class="btn btn-secondary" onclick="deleteSubmittedData()">
+                                    <i class="fas fa-trash"></i>
+                                    全データ削除
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="submitted-stats">
+                            <!-- 統計情報がここに表示されます -->
+                        </div>
+
+                        <div class="submitted-content">
+                            <div id="submittedShiftData">
+                                <!-- 提出されたシフトデータがここに表示されます -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 商品管理画面 -->
+        <section id="inventory" class="page">
+            <div class="container">
+                <!-- メッセージ表示エリア -->
+                <div id="inventorySuccessMessage" class="message success-message" style="display: none;"></div>
+                <div id="inventoryErrorMessage" class="message error-message" style="display: none;"></div>
+                <div id="inventoryInfoMessage" class="message info-message" style="display: none;"></div>
+
+                <!-- 統計情報 -->
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-box"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="total-products">0</div>
+                            <div class="stat-label">総商品数</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="low-stock-count">0</div>
+                            <div class="stat-label">在庫切れ</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <i class="fas fa-yen-sign"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="total-value">¥0</div>
+                            <div class="stat-label">総在庫価値</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- タブナビゲーション -->
+                <div class="tab-navigation">
+                    <button class="inventory-tab active" onclick="switchInventoryTab('list')">
+                        <i class="fas fa-list"></i> 商品一覧
+                    </button>
+                    <button class="inventory-tab" onclick="switchInventoryTab('inout')">
+                        <i class="fas fa-exchange-alt"></i> 入出庫管理
+                    </button>
+                    <button class="inventory-tab" onclick="switchInventoryTab('register')">
+                        <i class="fas fa-plus"></i> 商品登録
+                    </button>
+                    <button class="inventory-tab" onclick="switchInventoryTab('bulk')">
+                        <i class="fas fa-upload"></i> 一括登録
+                    </button>
+                </div>
+
+                <!-- 商品一覧タブ -->
+                <div id="inventory-list" class="inventory-content active">
+                    <div class="content-header">
+                        <h2><i class="fas fa-list"></i> 商品一覧</h2>
+                        <div class="header-actions">
+                            <div class="search-box">
+                                <input type="text" id="inventory-search" placeholder="商品名、ASIN、JANコードで検索..." onkeyup="filterInventoryTable()">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <select id="inventory-sort" onchange="sortInventoryTable()">
+                                <option value="">並び順</option>
+                                <option value="name">商品名順</option>
+                                <option value="asin">ASIN順</option>
+                                <option value="stock">在庫数順</option>
+                                <option value="price">価格順</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="refreshInventoryData()">
+                                <i class="fas fa-sync-alt"></i> 更新
+                            </button>
+                            <button class="btn btn-success" onclick="exportInventoryData()">
+                                <i class="fas fa-download"></i> エクスポート
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ASIN</th>
+                                    <th>JANコード</th>
+                                    <th>商品名</th>
+                                    <th>価格</th>
+                                    <th>在庫数</th>
+                                    <th>棚位置</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-tbody">
+                                <!-- データはJavaScriptで動的に生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 商品登録タブ -->
+                <div id="inventory-register" class="inventory-content">
+                    <div class="content-header">
+                        <h2><i class="fas fa-plus"></i> 商品登録</h2>
+                    </div>
+
+                    <form id="product-register-form" class="form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="asin">ASIN <span class="required">*</span></label>
+                                <input type="text" id="asin" name="asin" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="jan_code">JANコード <span class="required">*</span></label>
+                                <input type="text" id="jan_code" name="jan_code" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="product_name">商品名 <span class="required">*</span></label>
+                            <input type="text" id="product_name" name="product_name" required>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="price">価格 <span class="required">*</span></label>
+                                <input type="number" id="price" name="price" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="stock_quantity">在庫数</label>
+                                <input type="number" id="stock_quantity" name="stock_quantity" min="0" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="shelf_location">棚位置</label>
+                                <input type="text" id="shelf_location" name="shelf_location">
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> 登録
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 入出庫管理タブ -->
+                <div id="inventory-inout" class="inventory-content">
+                    <div class="content-header">
+                        <h2><i class="fas fa-exchange-alt"></i> 入出庫管理</h2>
+                    </div>
+
+                    <div class="form">
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 1;">
+                                <label for="inout-code">ASIN または JANコード</label>
+                                <input type="text" id="inout-code" placeholder="ASINまたはJANコードを入力">
+                            </div>
+                            <div class="form-group" style="align-self: end;">
+                                <button type="button" id="inout-search-btn" class="btn btn-secondary">
+                                    <i class="fas fa-search"></i> 検索
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="info-card" id="inout-product-info" style="display: none;">
+                            <h3><i class="fas fa-box"></i> 対象商品</h3>
+                            <div class="info-grid">
+                                <div><strong>ASIN:</strong> <span id="inout-details-asin">-</span></div>
+                                <div><strong>JANコード:</strong> <span id="inout-details-jan">-</span></div>
+                                <div><strong>商品名:</strong> <span id="inout-details-name">-</span></div>
+                                <div><strong>在庫数:</strong> <span id="inout-details-stock">-</span></div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="inout-quantity">操作する個数</label>
+                                <input type="number" id="inout-quantity" min="1" value="1">
+                            </div>
+                        </div>
+
+                        <div class="form-row" style="gap: 16px;">
+                            <div class="form-group" style="flex: 1;">
+                                <button type="button" id="inout-in-btn" class="btn btn-success" style="width: 100%;">
+                                    <i class="fas fa-arrow-down"></i> 入庫
+                                </button>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <button type="button" id="inout-out-btn" class="btn btn-danger" style="width: 100%;">
+                                    <i class="fas fa-arrow-up"></i> 出庫
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 一括登録タブ -->
+                <div id="inventory-bulk" class="inventory-content">
+                    <div class="content-header">
+                        <h2><i class="fas fa-upload"></i> 一括登録</h2>
+                    </div>
+
+                    <div class="upload-section">
+                        <div class="upload-area" id="inventoryDropZone">
+                            <div class="upload-content">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <h3>Excelファイルをアップロード</h3>
+                                <p>ドラッグ&ドロップまたはクリックしてファイルを選択</p>
+                                <input type="file" id="inventoryFileInput" accept=".xlsx,.xls" style="display: none;">
+                                <button type="button" class="btn btn-primary" onclick="document.getElementById('inventoryFileInput').click()">
+                                    <i class="fas fa-file-excel"></i> ファイルを選択
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="upload-info">
+                            <h4><i class="fas fa-info-circle"></i> 対応フォーマット</h4>
+                            <ul>
+                                <li>Excelファイル（.xlsx, .xls）</li>
+                                <li>以下の列を含む必要があります：</li>
+                                <li>・ASIN（C列）</li>
+                                <li>・JANコード（Q列）</li>
+                                <li>・商品名（E列）</li>
+                                <li>・価格（N列）</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Excelプレビュー -->
+                    <div id="inventoryExcelPreview" class="excel-preview" style="display: none;">
+                        <div class="preview-header">
+                            <h3><i class="fas fa-table"></i> Excelデータプレビュー</h3>
+                            <div class="sheet-selector">
+                                <label for="inventorySheetSelect">シート選択:</label>
+                                <select id="inventorySheetSelect" onchange="changeInventorySheet()">
+                                    <option value="">シートを選択してください</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="inventoryTableContainer">
+                            <!-- プレビューテーブルがここに表示される -->
+                        </div>
+                    </div>
+
+                    <!-- 列マッピング -->
+                    <div id="inventoryColumnMapping" class="column-mapping" style="display: none;">
+                        <div class="mapping-header">
+                            <h3><i class="fas fa-cogs"></i> 列マッピング設定</h3>
+                            <p>Excelの列とデータベースの項目を対応させてください</p>
+                        </div>
+                        <div class="mapping-form">
+                            <div class="mapping-row">
+                                <label>ASIN:</label>
+                                <select id="mapping-asin">
+                                    <option value="">列を選択</option>
+                                </select>
+                            </div>
+                            <div class="mapping-row">
+                                <label>JANコード:</label>
+                                <select id="mapping-jan_code">
+                                    <option value="">列を選択</option>
+                                </select>
+                            </div>
+                            <div class="mapping-row">
+                                <label>商品名:</label>
+                                <select id="mapping-product_name">
+                                    <option value="">列を選択</option>
+                                </select>
+                            </div>
+                            <div class="mapping-row">
+                                <label>価格:</label>
+                                <select id="mapping-price">
+                                    <option value="">列を選択</option>
+                                </select>
+                            </div>
+                            <div class="mapping-row">
+                                <label>在庫数:</label>
+                                <select id="mapping-stock_quantity">
+                                    <option value="">列を選択</option>
+                                </select>
+                            </div>
+                            <div class="mapping-row">
+                                <label>棚位置:</label>
+                                <select id="mapping-shelf_location">
+                                    <option value="">列を選択</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mapping-actions">
+                            <button class="btn btn-primary" onclick="saveInventoryToDatabase()">
+                                <i class="fas fa-save"></i> データベースに保存
+                            </button>
+                            <button class="btn btn-secondary" onclick="showManualMapping()">
+                                <i class="fas fa-cogs"></i> 手動マッピング
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 予算管理画面 -->
+        <section id="budget" class="page">
+            <div class="container">
+                <h2><i class="fas fa-chart-line"></i> 予算管理</h2>
+                
+                <!-- 予算概要 -->
+                <div class="budget-overview">
+                    <div class="budget-card">
+                        <h3>今月の売上目標</h3>
+                        <p id="current-revenue-target" class="budget-amount positive">¥0</p>
+                        <span class="budget-label">Revenue Target</span>
+                    </div>
+                    <div class="budget-card">
+                        <h3>今月の支出予算</h3>
+                        <p id="current-expense-budget" class="budget-amount negative">¥0</p>
+                        <span class="budget-label">Expense Budget</span>
+                    </div>
+                    <div class="budget-card">
+                        <h3>今月の利益目標</h3>
+                        <p id="current-profit-target" class="budget-amount positive">¥0</p>
+                        <span class="budget-label">Profit Target</span>
+                    </div>
+                </div>
+
+                <!-- タブナビゲーション -->
+                <div class="budget-tabs">
+                    <button class="budget-tab active" data-tab="monthly">
+                        <i class="fas fa-calendar-alt"></i>
+                        月次予算
+                    </button>
+                    <button class="budget-tab" data-tab="weekly">
+                        <i class="fas fa-calendar-week"></i>
+                        曜日別予算
+                    </button>
+                    
+                </div>
+
+                <!-- 月次予算タブ -->
+                <div id="budget-monthly" class="budget-content active">
+                    <div class="budget-section">
+                        <h3><i class="fas fa-plus"></i> 月次予算登録</h3>
+                        <form id="monthly-budget-form" class="budget-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="monthly-store">店舗 <span class="required">*</span></label>
+                                    <select name="store" id="monthly-store" required>
+                                        <option value="">店舗を選択</option>
+                                        <option value="iruma">入間店</option>
+                                        <option value="tokorozawa">所沢店</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="monthly-year">年 <span class="required">*</span></label>
+                                    <select name="year" id="monthly-year" class="year-select" required>
+                                        <option value="">年を選択</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="monthly-month">月 <span class="required">*</span></label>
+                                    <select name="month" id="monthly-month" class="month-select" required>
+                                        <option value="">月を選択</option>
+                                        <option value="1">1月</option>
+                                        <option value="2">2月</option>
+                                        <option value="3">3月</option>
+                                        <option value="4">4月</option>
+                                        <option value="5">5月</option>
+                                        <option value="6">6月</option>
+                                        <option value="7">7月</option>
+                                        <option value="8">8月</option>
+                                        <option value="9">9月</option>
+                                        <option value="10">10月</option>
+                                        <option value="11">11月</option>
+                                        <option value="12">12月</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="revenue-target">売上目標 <span class="required">*</span></label>
+                                    <input type="number" name="revenue_target" id="revenue-target" min="0" step="1000" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="expense-budget">支出予算</label>
+                                    <input type="number" name="expense_budget" id="expense-budget" min="0" step="1000">
+                                </div>
+                            </div>
+
+                            <div class="expense-breakdown">
+                                <h4>支出内訳</h4>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="staff-cost">人件費</label>
+                                        <input type="number" name="staff_cost" id="staff-cost" min="0" step="1000">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="utility-cost">光熱費</label>
+                                        <input type="number" name="utility_cost" id="utility-cost" min="0" step="1000">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="material-cost">材料費</label>
+                                        <input type="number" name="material_cost" id="material-cost" min="0" step="1000">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="other-cost">その他</label>
+                                        <input type="number" name="other_cost" id="other-cost" min="0" step="1000">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="monthly-notes">備考</label>
+                                <textarea name="notes" id="monthly-notes" rows="3"></textarea>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> 保存
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="exportBudgetData()">
+                                    <i class="fas fa-download"></i> エクスポート
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="budget-section">
+                        <h3><i class="fas fa-list"></i> 登録済み月次予算</h3>
+                        <div id="monthly-budgets-list" class="budgets-list">
+                            <!-- 月次予算データがここに表示されます -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 曜日別予算タブ -->
+                <div id="budget-weekly" class="budget-content">
+                    <div class="budget-section">
+                        <h3><i class="fas fa-plus"></i> 曜日別予算登録</h3>
+                        <form id="weekly-budget-form" class="budget-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="weekly-store">店舗 <span class="required">*</span></label>
+                                    <select name="store" id="weekly-store" required>
+                                        <option value="">店舗を選択</option>
+                                        <option value="iruma">入間店</option>
+                                        <option value="tokorozawa">所沢店</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="weekly-year">年 <span class="required">*</span></label>
+                                    <select name="year" id="weekly-year" class="year-select" required>
+                                        <option value="">年を選択</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="weekly-month">月 <span class="required">*</span></label>
+                                    <select name="month" id="weekly-month" class="month-select" required>
+                                        <option value="">月を選択</option>
+                                        <option value="1">1月</option>
+                                        <option value="2">2月</option>
+                                        <option value="3">3月</option>
+                                        <option value="4">4月</option>
+                                        <option value="5">5月</option>
+                                        <option value="6">6月</option>
+                                        <option value="7">7月</option>
+                                        <option value="8">8月</option>
+                                        <option value="9">9月</option>
+                                        <option value="10">10月</option>
+                                        <option value="11">11月</option>
+                                        <option value="12">12月</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="weekly-input-grid">
+                                <div class="day-input-group">
+                                    <h4>月曜日</h4>
+                                    <div class="day-inputs">
+                                        <div class="form-group">
+                                            <label for="monday-revenue">売上目標</label>
+                                            <input type="number" name="monday_revenue" id="monday-revenue" min="0" step="1000">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="monday-expense">支出予算</label>
+                                            <input type="number" name="monday_expense" id="monday-expense" min="0" step="1000">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="day-input-group">
+                                    <h4>火曜日</h4>
+                                    <div class="day-inputs">
+                                        <div class="form-group">
+                                            <label for="tuesday-revenue">売上目標</label>
+                                            <input type="number" name="tuesday_revenue" id="tuesday-revenue" min="0" step="1000">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="tuesday-expense">支出予算</label>
+                                            <input type="number" name="tuesday_expense" id="tuesday-expense" min="0" step="1000">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="day-input-group">
+                                    <h4>水曜日</h4>
+                                    <div class="day-inputs">
+                                        <div class="form-group">
+                                            <label for="wednesday-revenue">売上目標</label>
+                                            <input type="number" name="wednesday_revenue" id="wednesday-revenue" min="0" step="1000">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="wednesday-expense">支出予算</label>
+                                            <input type="number" name="wednesday_expense" id="wednesday-expense" min="0" step="1000">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="day-input-group">
+                                    <h4>木曜日</h4>
+                                    <div class="day-inputs">
+                                        <div class="form-group">
+                                            <label for="thursday-revenue">売上目標</label>
+                                            <input type="number" name="thursday_revenue" id="thursday-revenue" min="0" step="1000">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="thursday-expense">支出予算</label>
+                                            <input type="number" name="thursday_expense" id="thursday-expense" min="0" step="1000">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="day-input-group">
+                                    <h4>金曜日</h4>
+                                    <div class="day-inputs">
+                                        <div class="form-group">
+                                            <label for="friday-revenue">売上目標</label>
+                                            <input type="number" name="friday_revenue" id="friday-revenue" min="0" step="1000">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="friday-expense">支出予算</label>
+                                            <input type="number" name="friday_expense" id="friday-expense" min="0" step="1000">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="day-input-group">
+                                    <h4>土曜日</h4>
+                                    <div class="day-inputs">
+                                        <div class="form-group">
+                                            <label for="saturday-revenue">売上目標</label>
+                                            <input type="number" name="saturday_revenue" id="saturday-revenue" min="0" step="1000">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="saturday-expense">支出予算</label>
+                                            <input type="number" name="saturday_expense" id="saturday-expense" min="0" step="1000">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="day-input-group">
+                                    <h4>日曜日</h4>
+                                    <div class="day-inputs">
+                                        <div class="form-group">
+                                            <label for="sunday-revenue">売上目標</label>
+                                            <input type="number" name="sunday_revenue" id="sunday-revenue" min="0" step="1000">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="sunday-expense">支出予算</label>
+                                            <input type="number" name="sunday_expense" id="sunday-expense" min="0" step="1000">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="day-input-group">
+                                    <h4>祝日</h4>
+                                    <div class="day-inputs">
+                                        <div class="form-group">
+                                            <label for="holiday-revenue">売上目標</label>
+                                            <input type="number" name="holiday_revenue" id="holiday-revenue" min="0" step="1000" placeholder="祝日の売上目標">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="holiday-expense">支出予算</label>
+                                            <input type="number" name="holiday_expense" id="holiday-expense" min="0" step="1000" placeholder="祝日の支出予算">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> 保存
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="budget-section">
+                        <h3><i class="fas fa-list"></i> 登録済み曜日別予算</h3>
+                        <div id="weekly-budgets-list" class="budgets-list">
+                            <!-- 曜日別予算データがここに表示されます -->
+                        </div>
+                    </div>
+                </div>
+
+                
+            </div>
+        </section>
+
+        <!-- マイページ画面 -->
+        <section id="mypage" class="page">
+            <div class="container">
+                <div class="mypage-header">
+                    <h2><i class="fas fa-user-circle"></i> マイページ</h2>
+                    <p class="mypage-subtitle">ユーザー情報の確認とパスワード変更</p>
+                </div>
+
+                <!-- マイページタブナビゲーション -->
+                <div class="mypage-tabs">
+                    <button class="mypage-tab active" onclick="switchMypageTab('profile')">
+                        <i class="fas fa-user"></i>
+                        プロフィール
+                    </button>
+                    <button class="mypage-tab" onclick="switchMypageTab('password')">
+                        <i class="fas fa-key"></i>
+                        パスワード変更
+                    </button>
+                </div>
+
+                <!-- プロフィールタブ -->
+                <div id="mypage-profile" class="mypage-content active">
+                    <div class="profile-section">
+                        <h3><i class="fas fa-user"></i> ユーザー情報</h3>
+                        <div class="profile-info">
+                            <div class="profile-item">
+                                <span class="profile-label">ユーザー名</span>
+                                <span id="profile-username" class="profile-value">-</span>
+                            </div>
+                            <div class="profile-item">
+                                <span class="profile-label">氏名</span>
+                                <span id="profile-fullname" class="profile-value">-</span>
+                            </div>
+                            <div class="profile-item">
+                                <span class="profile-label">権限</span>
+                                <span id="profile-role" class="profile-value">-</span>
+                            </div>
+                            <div class="profile-item">
+                                <span class="profile-label">最終ログイン</span>
+                                <span id="profile-lastlogin" class="profile-value">-</span>
+                            </div>
+                            <div class="profile-item">
+                                <span class="profile-label">アカウント作成日</span>
+                                <span id="profile-created" class="profile-value">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    
+                </div>
+
+                <!-- パスワード変更タブ -->
+                <div id="mypage-password" class="mypage-content">
+                    <div class="password-section">
+                        <h3><i class="fas fa-key"></i> パスワード変更</h3>
+                        <form id="password-change-form" class="password-form">
+                            <div class="form-group">
+                                <label for="current-password">現在のパスワード <span class="required">*</span></label>
+                                <input type="password" id="current-password" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="new-password">新しいパスワード <span class="required">*</span></label>
+                                <input type="password" id="new-password" required>
+                                <small class="password-hint">8文字以上で英数字を含めてください</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="confirm-password">新しいパスワード（確認） <span class="required">*</span></label>
+                                <input type="password" id="confirm-password" required>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> パスワードを変更
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="clearPasswordForm()">
+                                    <i class="fas fa-undo"></i> クリア
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ツール画面 -->
+        <section id="tools" class="page">
+            <div class="container">
+                <div class="tools-header">
+                    <h2><i class="fas fa-tools"></i> ツール</h2>
+                    <p class="tools-subtitle">店舗運営に役立つ便利なツールを集めました</p>
+                </div>
+
+                <!-- ツールタブナビゲーション -->
+                <div class="tools-tabs">
+                    <button class="tools-tab active" onclick="switchToolsTab('shipping')">
+                        <i class="fas fa-truck"></i>
+                        配送料金計算
+                    </button>
+                    <button class="tools-tab" onclick="switchToolsTab('closing')">
+                        <i class="fas fa-cash-register"></i>
+                        締め計算
+                    </button>
+                    <button class="tools-tab" onclick="switchToolsTab('cashcalc')">
+                        <i class="fas fa-coins"></i>
+                        釣り銭計算
+                    </button>
+
+                </div>
+
+                <!-- 配送料金計算ツール -->
+                <div id="shipping-tab" class="tools-tab-content active">
+                    <div class="tool-content-header">
+                        <h3><i class="fas fa-truck"></i> 配送料金計算</h3>
+                        <p>佐川郵便の料金体系に従い、荷物のサイズと配送先から料金を算出します</p>
+                    </div>
+
+                    <div class="tool-form">
+                        <div class="form-section">
+                            <h4><i class="fas fa-box"></i> 荷物情報</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="package-length">縦 (cm) <span class="required">*</span></label>
+                                    <input type="number" id="package-length" min="1" step="0.1" placeholder="縦の長さを入力">
+                                </div>
+                                <div class="form-group">
+                                    <label for="package-width">横 (cm) <span class="required">*</span></label>
+                                    <input type="number" id="package-width" min="1" step="0.1" placeholder="横の長さを入力">
+                                </div>
+                                <div class="form-group">
+                                    <label for="package-height">高さ (cm) <span class="required">*</span></label>
+                                    <input type="number" id="package-height" min="1" step="0.1" placeholder="高さを入力">
+                                </div>
+                                <div class="form-group">
+                                    <label for="package-weight">重量 (kg) <span class="required">*</span></label>
+                                    <input type="number" id="package-weight" min="0.1" step="0.1" placeholder="重量を入力">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h4><i class="fas fa-map-marker-alt"></i> 配送先情報</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="delivery-prefecture">都道府県 <span class="required">*</span></label>
+                                    <select id="delivery-prefecture">
+                                        <option value="">都道府県を選択してください</option>
+                                        <option value="hokkaido">北海道(北海道)</option>
+                                        <option value="tohoku">東北(青森, 岩手, 宮城, 秋田, 山形, 福島)</option>
+                                        <option value="kanto">関東(東京, 神奈川, 埼玉, 千葉, 群馬, 栃木, 茨城)</option>
+                                        <option value="chubu">中部(新潟, 富山, 石川, 福井, 山梨, 長野, 岐阜, 静岡, 愛知)</option>
+                                        <option value="kansai">関西(大阪, 京都, 兵庫, 奈良, 滋賀, 和歌山)</option>
+                                        <option value="chugoku">中国(鳥取, 島根, 岡山, 広島, 山口)</option>
+                                        <option value="shikoku">四国(香川, 愛媛, 高知, 徳島)</option>
+                                        <option value="kyushu">九州(福岡, 佐賀, 長崎, 熊本, 大分, 宮崎, 鹿児島)</option>
+                                        <option value="okinawa">沖縄(沖縄)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="delivery-type">配送方法</label>
+                                    <select id="delivery-type">
+                                        <option value="standard">通常配送</option>
+                                        <option value="express">速達（+300円）</option>
+                                        <option value="cool">クール便（+500円）</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button class="btn btn-primary" onclick="calculateShipping()">
+                                <i class="fas fa-calculator"></i> 料金を計算する
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearShippingForm()">
+                                <i class="fas fa-undo"></i> 入力をクリア
+                            </button>
+                        </div>
+
+                        <div id="shipping-result" class="calculation-result" style="display: none;">
+                            <div class="result-header">
+                                <h4><i class="fas fa-receipt"></i> 計算結果</h4>
+                            </div>
+                            <div class="result-details">
+                                <div class="result-item">
+                                    <span class="result-label">荷物サイズ</span>
+                                    <span id="calculated-size" class="result-value">-</span>
+                                </div>
+                                <div class="result-item total">
+                                    <span class="result-label">配送料金</span>
+                                    <span id="calculated-price" class="result-value price">¥0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 締め計算ツール -->
+                <div id="closing-tab" class="tools-tab-content">
+                    <div class="tool-content-header">
+                        <h3><i class="fas fa-cash-register"></i> 締め計算</h3>
+                        <p>レジ締めや売上集計の計算を効率化し、現金過不足を確認できます</p>
+                    </div>
+
+                    <div class="tool-form">
+                        <div class="form-section">
+                            <h4><i class="fas fa-store"></i> 店舗選択</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="store-select">店舗 <span class="required">*</span></label>
+                                    <select id="store-select" onchange="updateRegisterFields()">
+                                        <option value="">店舗を選択してください</option>
+                                        <option value="iruma">入間店</option>
+                                        <option value="tokorozawa">所沢店</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h4><i class="fas fa-cash-register"></i> レジ1情報入力</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="register1-cash">現金売上</label>
+                                    <input type="number" id="register1-cash" min="0" step="1" placeholder="現金売上" value="0">
+                                </div>
+                                <div class="form-group">
+                                    <label for="register1-square">スクエア売上</label>
+                                    <input type="number" id="register1-square" min="0" step="1" placeholder="スクエア売上" value="0">
+                                </div>
+                                <div class="form-group">
+                                    <label for="register1-gift">商品券</label>
+                                    <input type="number" id="register1-gift" min="0" step="1" placeholder="商品券" value="0">
+                                </div>
+                            </div>
+                             <div class="form-row">
+                                 <div class="form-group">
+                                     <label for="register1-items">販売点数</label>
+                                     <input type="number" id="register1-items" min="0" step="1" placeholder="販売点数" value="0">
+                                 </div>
+                                 <div class="form-group">
+                                     <label for="register1-customers">客数</label>
+                                     <input type="number" id="register1-customers" min="0" step="1" placeholder="客数" value="0">
+                                 </div>
+                             </div>
+                        </div>
+
+                        <div class="form-section" id="register2-section" style="display: none;">
+                            <h4><i class="fas fa-cash-register"></i> レジ2情報入力</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="register2-cash">現金売上</label>
+                                    <input type="number" id="register2-cash" min="0" step="1" placeholder="現金売上" value="0">
+                                </div>
+                                <div class="form-group">
+                                    <label for="register2-square">スクエア売上</label>
+                                    <input type="number" id="register2-square" min="0" step="1" placeholder="スクエア売上" value="0">
+                                </div>
+                                <div class="form-group">
+                                    <label for="register2-gift">商品券</label>
+                                    <input type="number" id="register2-gift" min="0" step="1" placeholder="商品券" value="0">
+                                </div>
+                            </div>
+                             <div class="form-row">
+                                 <div class="form-group">
+                                     <label for="register2-items">販売点数</label>
+                                     <input type="number" id="register2-items" min="0" step="1" placeholder="販売点数" value="0">
+                                 </div>
+                                 <div class="form-group">
+                                     <label for="register2-customers">客数</label>
+                                     <input type="number" id="register2-customers" min="0" step="1" placeholder="客数" value="0">
+                                 </div>
+                             </div>
+                        </div>
+
+
+                        <div class="form-section">
+                            <h4><i class="fas fa-user"></i> 担当者情報</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="staff-name">担当者名 <span class="required">*</span></label>
+                                    <input type="text" id="staff-name" placeholder="担当者名を入力してください" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h4><i class="fas fa-calendar"></i> 日付設定</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="closing-date">計算対象日 <span class="required">*</span></label>
+                                    <input type="date" id="closing-date" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h4><i class="fas fa-calendar-day"></i> 祝日設定</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="is-holiday-today">
+                                        指定日は祝日
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button class="btn btn-primary" onclick="calculateClosing()">
+                                <i class="fas fa-calculator"></i> 締め計算を実行
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearClosingForm()">
+                                <i class="fas fa-undo"></i> 入力をクリア
+                            </button>
+                        </div>
+
+                        <div id="closing-result" class="calculation-result" style="display: none;">
+                            <div class="result-header">
+                                <h4><i class="fas fa-chart-line"></i> 計算結果</h4>
+                            </div>
+                            <div class="result-details">
+                                <div class="result-item">
+                                    <span class="result-label">計算対象日</span>
+                                    <span id="closing-date-display" class="result-value">未設定</span>
+                                </div>
+                                <div class="result-item">
+                                    <span class="result-label">レジ1現金売上</span>
+                                    <span id="register1-cash-total" class="result-value price">¥0</span>
+                                </div>
+                                <div class="result-item">
+                                    <span class="result-label">レジ1スクエア売上</span>
+                                    <span id="register1-square-total" class="result-value price">¥0</span>
+                                </div>
+                                <div class="result-item">
+                                    <span class="result-label">レジ1商品券</span>
+                                    <span id="register1-gift-total" class="result-value price">¥0</span>
+                                </div>
+                                <div class="result-item">
+                                    <span class="result-label">レジ1合計</span>
+                                    <span id="register1-total" class="result-value price">¥0</span>
+                                </div>
+                                <div class="result-item" id="register2-cash-result" style="display: none;">
+                                    <span class="result-label">レジ2現金売上</span>
+                                    <span id="register2-cash-total" class="result-value price">¥0</span>
+                                </div>
+                                <div class="result-item" id="register2-square-result" style="display: none;">
+                                    <span class="result-label">レジ2スクエア売上</span>
+                                    <span id="register2-square-total" class="result-value price">¥0</span>
+                                </div>
+                                <div class="result-item" id="register2-gift-result" style="display: none;">
+                                    <span class="result-label">レジ2商品券</span>
+                                    <span id="register2-gift-total" class="result-value price">¥0</span>
+                                </div>
+                                <div class="result-item" id="register2-total-result" style="display: none;">
+                                    <span class="result-label">レジ2合計</span>
+                                    <span id="register2-total" class="result-value price">¥0</span>
+                                </div>
+                                <div class="result-item total">
+                                    <span class="result-label">総売上</span>
+                                    <span id="total-sales" class="result-value price">¥0</span>
+                                </div>
+                                <div class="result-item">
+                                    <span class="result-label">販売点数</span>
+                                    <span id="total-items-display" class="result-value">0点</span>
+                                </div>
+                                <div class="result-item">
+                                    <span class="result-label">客数</span>
+                                    <span id="total-customers-display" class="result-value">0人</span>
+                                </div>
+                                <div class="result-item">
+                                    <span class="result-label">客単価</span>
+                                    <span id="average-per-customer" class="result-value price">¥0</span>
+                                </div>
+                                <div class="result-item">
+                                    <span class="result-label">点単価</span>
+                                    <span id="average-per-item" class="result-value price">¥0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 詳細レポート表示 -->
+                        <div id="closing-report" class="calculation-result" style="display: none;">
+                            <div class="result-header">
+                                <h4><i class="fas fa-file-alt"></i> 詳細レポート</h4>
+                            </div>
+                            <div class="result-details">
+                                <div class="report-item">
+                                    <span class="report-label">年月日</span>
+                                    <span id="report-date" class="report-value">2024年1月1日</span>
+                                </div>
+                                <div class="report-item">
+                                    <span class="report-label">担当者</span>
+                                    <span id="report-staff" class="report-value">未設定</span>
+                                </div>
+                                <div class="report-item">
+                                    <span class="report-label">店舗</span>
+                                    <span id="report-store" class="report-value">39Outlet 未選択</span>
+                                </div>
+                                <div class="report-item">
+                                    <span class="report-label">今月予算</span>
+                                    <span id="report-monthly-budget" class="report-value price">¥0</span>
+                                </div>
+                                <div class="report-item">
+                                    <span class="report-label">今月予算累計</span>
+                                    <span id="report-monthly-total" class="report-value price">¥0</span>
+                                </div>
+                                <div class="report-item">
+                                    <span class="report-label">今月達成率</span>
+                                    <span id="report-monthly-achievement" class="report-value">0.0%</span>
+                                </div>
+                                <div class="report-item">
+                                    <span class="report-label">本日予算</span>
+                                    <span id="report-daily-budget" class="report-value price">¥0</span>
+                                </div>
+                                <div class="report-item">
+                                    <span class="report-label">本日売上</span>
+                                    <span id="report-daily-sales" class="report-value price">¥0</span>
+                                </div>
+                                <div class="report-item">
+                                    <span class="report-label">本日達成率</span>
+                                    <span id="report-daily-achievement" class="report-value">0.0%</span>
+                                </div>
+                                <div class="report-item">
+                                    <span class="report-label">現金売上</span>
+                                    <span id="report-cash-sales" class="report-value price">¥0</span>
+                                </div>
+                                <div class="report-item">
+                                    <span class="report-label">キャッシュレス売上</span>
+                                    <span id="report-cashless-sales" class="report-value price">¥0</span>
+                                </div>
+                                <div class="report-item">
+                                    <span class="report-label">商品券利用</span>
+                                    <span id="report-gift-sales" class="report-value price">¥0</span>
+                                </div>
+                                <div class="report-item">
+                                    <span class="report-label">販売点数</span>
+                                    <span id="report-items" class="report-value">0点</span>
+                                </div>
+                                <div class="report-item">
+                                    <span class="report-label">客数</span>
+                                    <span id="report-customers" class="report-value">0人</span>
+                                </div>
+                                <div class="report-item">
+                                    <span class="report-label">客単価</span>
+                                    <span id="report-customer-average" class="report-value price">¥0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 保存された締め計算結果表示 -->
+                        <div id="saved-closing-results" class="calculation-result" style="display: none;">
+                            <div class="result-header">
+                                <h4><i class="fas fa-database"></i> 保存された締め計算結果</h4>
+                                <div class="result-actions">
+                                    <button class="btn btn-sm btn-secondary" onclick="loadSavedClosingResults()">
+                                        <i class="fas fa-sync"></i> 更新
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="saved-results-list" class="result-details">
+                                <!-- 保存された結果がここに表示されます -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 釣り銭計算ツール -->
+                <div id="cashcalc-tab" class="tools-tab-content">
+                    <div class="tool-content-header">
+                        <h3><i class="fas fa-coins"></i> 釣り銭計算</h3>
+                        <p>紙幣・硬貨の本数/枚数から合計金額を算出します</p>
+                    </div>
+
+                    <div class="tool-form">
+                        <div class="form-section">
+                            <h4><i class="fas fa-yen-sign"></i> 金額と枚数を入力</h4>
+                            <div class="form-row" style="flex-direction: column; gap: 12px;">
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <label>1万円札</label>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <input type="number" class="cashcalc-input" id="note_10000_count_input" value="0" min="0" oninput="calculateCashTotals()" style="width:120px;text-align:right;">
+                                        <span>枚</span>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <label>5千円札</label>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <input type="number" class="cashcalc-input" id="note_5000_count_input" value="0" min="0" oninput="calculateCashTotals()" style="width:120px;text-align:right;">
+                                        <span>枚</span>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <label>千円札</label>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <input type="number" class="cashcalc-input" id="note_1000_count_input" value="0" min="0" oninput="calculateCashTotals()" style="width:120px;text-align:right;">
+                                        <span>枚</span>
+                                    </div>
+                                </div>
+
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <label>500円玉</label>
+                                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                        <input type="number" class="cashcalc-input" id="coin_500_roll" value="0" min="0" oninput="calculateCashTotals()" placeholder="本" style="width:100px;text-align:right;">
+                                        <span>本</span>
+                                        <input type="number" class="cashcalc-input" id="coin_500_loose" value="0" min="0" oninput="calculateCashTotals()" placeholder="円" style="width:100px;text-align:right;">
+                                        <span>円</span>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <label>100円玉</label>
+                                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                        <input type="number" class="cashcalc-input" id="coin_100_roll" value="0" min="0" oninput="calculateCashTotals()" placeholder="本" style="width:100px;text-align:right;">
+                                        <span>本</span>
+                                        <input type="number" class="cashcalc-input" id="coin_100_loose" value="0" min="0" oninput="calculateCashTotals()" placeholder="円" style="width:100px;text-align:right;">
+                                        <span>円</span>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <label>50円玉</label>
+                                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                        <input type="number" class="cashcalc-input" id="coin_50_roll" value="0" min="0" oninput="calculateCashTotals()" placeholder="本" style="width:100px;text-align:right;">
+                                        <span>本</span>
+                                        <input type="number" class="cashcalc-input" id="coin_50_loose" value="0" min="0" oninput="calculateCashTotals()" placeholder="円" style="width:100px;text-align:right;">
+                                        <span>円</span>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <label>10円玉</label>
+                                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                        <input type="number" class="cashcalc-input" id="coin_10_roll" value="0" min="0" oninput="calculateCashTotals()" placeholder="本" style="width:100px;text-align:right;">
+                                        <span>本</span>
+                                        <input type="number" class="cashcalc-input" id="coin_10_loose" value="0" min="0" oninput="calculateCashTotals()" placeholder="円" style="width:100px;text-align:right;">
+                                        <span>円</span>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <label>5円玉</label>
+                                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                        <input type="number" class="cashcalc-input" id="coin_5_roll" value="0" min="0" oninput="calculateCashTotals()" placeholder="本" style="width:100px;text-align:right;">
+                                        <span>本</span>
+                                        <input type="number" class="cashcalc-input" id="coin_5_loose" value="0" min="0" oninput="calculateCashTotals()" placeholder="円" style="width:100px;text-align:right;">
+                                        <span>円</span>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <label>1円玉</label>
+                                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                        <input type="number" class="cashcalc-input" id="coin_1_roll" value="0" min="0" oninput="calculateCashTotals()" placeholder="本" style="width:100px;text-align:right;">
+                                        <span>本</span>
+                                        <input type="number" class="cashcalc-input" id="coin_1_loose" value="0" min="0" oninput="calculateCashTotals()" placeholder="円" style="width:100px;text-align:right;">
+                                        <span>円</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="calculation-result" id="cashcalc-total" style="display:block;">
+                            <div class="result-header">
+                                <h4><i class="fas fa-receipt"></i> 合計金額</h4>
+                            </div>
+                            <div class="result-details">
+                                <div class="result-item total">
+                                    <span class="result-label">合計</span>
+                                    <span id="cash_total_display" class="result-value price">¥0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section" style="margin-top:16px;">
+                            <h4><i class="fas fa-list-ul"></i> 金種別枚数</h4>
+                            <div class="form-row" style="flex-direction:column;gap:10px;">
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <span>1万円札</span>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <span id="note_10000_count" class="font-bold">0</span> 枚
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('note_10000_count', 1)">+</button>
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('note_10000_count', -1)">-</button>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <span>5千円札</span>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <span id="note_5000_count" class="font-bold">0</span> 枚
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('note_5000_count', 1)">+</button>
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('note_5000_count', -1)">-</button>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <span>千円札</span>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <span id="note_1000_count" class="font-bold">0</span> 枚
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('note_1000_count', 1)">+</button>
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('note_1000_count', -1)">-</button>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <span>500円玉</span>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <span id="coin_500_count" class="font-bold">0</span> 枚
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('coin_500_count', 1)">+</button>
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('coin_500_count', -1)">-</button>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <span>100円玉</span>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <span id="coin_100_count" class="font-bold">0</span> 枚
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('coin_100_count', 1)">+</button>
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('coin_100_count', -1)">-</button>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <span>50円玉</span>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <span id="coin_50_count" class="font-bold">0</span> 枚
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('coin_50_count', 1)">+</button>
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('coin_50_count', -1)">-</button>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <span>10円玉</span>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <span id="coin_10_count" class="font-bold">0</span> 枚
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('coin_10_count', 1)">+</button>
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('coin_10_count', -1)">-</button>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <span>5円玉</span>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <span id="coin_5_count" class="font-bold">0</span> 枚
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('coin_5_count', 1)">+</button>
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('coin_5_count', -1)">-</button>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <span>1円玉</span>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <span id="coin_1_count" class="font-bold">0</span> 枚
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('coin_1_count', 1)">+</button>
+                                        <button type="button" class="btn btn-secondary" onclick="adjustCashCount('coin_1_count', -1)">-</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- カスタムモーダル -->
+    <div id="custom-modal" class="custom-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    確認
+                </h3>
+                <button class="modal-close" id="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="modal-message">この投稿を削除しますか？</p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="modal-cancel">
+                    <i class="fas fa-times"></i><span>キャンセル</span>
+                </button>
+                <button class="modal-btn modal-btn-confirm" id="modal-confirm">
+                    <i class="fas fa-trash"></i><span>削除</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- カスタム通知 -->
+    <div id="notification-container" class="notification-container"></div>
+
+
+            <script>
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            // Supabaseクライアントの初期化
+            initializeSupabaseClient();
+            
+            // ログイン状態をチェック
+            checkLoginStatus();
+            
+            // ログインフォームのイベントリスナーを追加
+            const loginForm = document.getElementById('login-form');
+            if (loginForm) {
+                loginForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    login();
+                });
+            }
+            
+            // パスワードフィールドの状態を確認
+            const passwordField = document.getElementById('login-password');
+            if (passwordField) {
+                console.log('パスワードフィールドの状態:', {
+                    disabled: passwordField.disabled,
+                    readonly: passwordField.readOnly,
+                    type: passwordField.type,
+                    style: passwordField.style.cssText
+                });
+                
+                // パスワードフィールドが無効化されている場合は有効化
+                if (passwordField.disabled) {
+                    passwordField.disabled = false;
+                    console.log('パスワードフィールドを有効化しました');
+                }
+                
+                // 読み取り専用の場合は解除
+                if (passwordField.readOnly) {
+                    passwordField.readOnly = false;
+                    console.log('パスワードフィールドの読み取り専用を解除しました');
+                }
+            } else {
+                console.error('パスワードフィールドが見つかりません');
+            }
+            
+            // 日付フィールドに今日の日付を設定
+            const closingDateField = document.getElementById('closing-date');
+            if (closingDateField) {
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                closingDateField.value = `${year}-${month}-${day}`;
+            }
+            
+            // 締め計算タブが表示されている場合、祝日設定を復元
+            const closingTab = document.getElementById('closing-tab');
+            if (closingTab && closingTab.classList.contains('active')) {
+                restoreHolidaySetting();
+            }
+            
+            // 掲示板機能の初期化（少し遅延させる）
+            setTimeout(() => {
+                initializeBulletinBoard();
+                initializeBulletinTabs(); // 掲示板タブの初期化を追加
+            }, 100);
+            
+            // 通知機能の初期化（少し遅延させる）
+            setTimeout(() => {
+                initializeNotificationSystem();
+            }, 100);
+        });
+        
+        // 掲示板機能の初期化
+        async function initializeBulletinBoard() {
+            try {
+                // データベースの初期化
+                if (typeof initializeSupabase === 'function') {
+                    const dbInitialized = initializeSupabase();
+                    if (!dbInitialized) {
+                        console.error('データベースの初期化に失敗しました');
+                        return;
+                    }
+                }
+                
+                // 掲示板UIの初期化（database.jsで既に初期化されているため、ここではチェックのみ）
+                if (typeof BulletinBoardUI !== 'undefined') {
+                    console.log('掲示板機能が利用可能です');
+                } else {
+                    console.log('BulletinBoardUIクラスが見つかりません - 掲示板機能は無効化されます');
+                }
+            } catch (error) {
+                console.error('掲示板機能の初期化に失敗しました:', error);
+            }
+        }
+        
+        // 通知機能の初期化
+        function initializeNotificationSystem() {
+            try {
+                if (typeof NotificationManager !== 'undefined') {
+                    const notificationManager = new NotificationManager();
+                    notificationManager.init();
+                    console.log('通知機能が初期化されました');
+                } else {
+                    console.log('NotificationManagerクラスが見つかりません - 通知機能は無効化されます');
+                }
+            } catch (error) {
+                console.error('通知機能の初期化に失敗しました:', error);
+            }
+        }
+        
+        // 掲示板タブ切り替え機能（グローバル関数として定義）
+        window.initializeBulletinTabs = function() {
+            const tabButtons = document.querySelectorAll('.bulletin-tabs .tab-btn');
+            const tabContents = document.querySelectorAll('.bulletin-content .tab-content');
+            
+            console.log('掲示板タブの初期化:', tabButtons.length, 'タブボタン,', tabContents.length, 'コンテンツ');
+            
+            if (tabButtons.length === 0) {
+                console.warn('掲示板タブボタンが見つかりません');
+                return;
+            }
+            
+            if (tabContents.length === 0) {
+                console.warn('掲示板タブコンテンツが見つかりません');
+                return;
+            }
+            
+            // 初期状態の確実な設定
+            const activeButton = document.querySelector('.bulletin-tabs .tab-btn.active');
+            const activeTabId = activeButton ? activeButton.getAttribute('data-tab') : 'manual';
+            
+            // すべてのタブの状態をリセット
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // 初期アクティブ状態を設定
+            const initialActiveButton = document.querySelector(`.bulletin-tabs .tab-btn[data-tab="${activeTabId}"]`);
+            const initialActiveContent = document.getElementById(activeTabId);
+            
+            if (initialActiveButton) {
+                initialActiveButton.classList.add('active');
+                console.log('初期アクティブボタン設定:', activeTabId);
+            } else {
+                console.warn('初期アクティブボタンが見つかりません:', activeTabId);
+            }
+            
+            if (initialActiveContent) {
+                initialActiveContent.classList.add('active');
+                console.log('初期アクティブコンテンツ設定:', activeTabId);
+            } else {
+                console.warn('初期アクティブコンテンツが見つかりません:', activeTabId);
+            }
+            
+            // 既存のイベントリスナーをクリアする処理は不要
+            tabButtons.forEach(button => {
+              // すでに初期化済みならスキップ（data属性で管理する場合はこのままでもOK）
+              if (button.dataset.bulletinInitialized === 'true') return;
+
+              button.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation(); // イベントの伝播を停止
+                
+                const targetTab = this.getAttribute('data-tab');
+                console.log('掲示板タブクリック:', targetTab);
+
+                // すべてのタブボタン・コンテンツからactiveを外す
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+
+                // クリックされたタブ・対応するコンテンツにactiveを付与
+                this.classList.add('active');
+                const targetContent = document.getElementById(targetTab);
+                if (targetContent) {
+                    targetContent.classList.add('active');
+                    console.log('掲示板タブ切り替え成功:', targetTab);
+                } else {
+                    console.error('ターゲットコンテンツが見つかりません:', targetTab);
+                }
+              });
+
+              button.dataset.bulletinInitialized = 'true';
+            });
+        };
+        
+        // 掲示板タブは上記の初期化で呼び出されるため、ここでは削除
+        
+        // 投稿フォームの表示/非表示切り替え
+        document.addEventListener('DOMContentLoaded', function() {
+            const formToggles = document.querySelectorAll('.post-form-toggle');
+            
+            formToggles.forEach(toggle => {
+                toggle.addEventListener('click', function() {
+                    const formType = this.getAttribute('data-form');
+                    const form = document.getElementById(formType + '-form');
+                    
+                    if (form) {
+                        const isVisible = form.style.display === 'block';
+                        form.style.display = isVisible ? 'none' : 'block';
+                        
+                        // ボタンのテキストを変更
+                        const icon = this.querySelector('i');
+                        if (isVisible) {
+                            icon.className = 'fas fa-plus';
+                            this.innerHTML = '<i class="fas fa-plus"></i> 新規投稿';
+                        } else {
+                            icon.className = 'fas fa-minus';
+                            this.innerHTML = '<i class="fas fa-minus"></i> フォームを閉じる';
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+    
+    <script src="supabase-config.js"></script>
+    <script src="user-auth-utils.js"></script>
+    <script src="script.js"></script>
+    <script src="shift-submit.js"></script>
+    <script src="shift-substitution.js"></script>
+    <script src="shift-recruit.js"></script>
+    <script src="inventory.js"></script>
+    <script src="budget.js"></script>
+    <script src="tools.js"></script>
+    <script src="database.js"></script>
+    <script src="home.js"></script>
+
+    
+</body>
+</html> 

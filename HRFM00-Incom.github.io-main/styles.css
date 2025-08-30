@@ -1,0 +1,96 @@
+/*
+  セットアップ手順（必読）
+  1) Supabase プロジェクトを作成し、Project URL と anon public key を取得する。
+  2) app.js 内の SUPABASE_URL と SUPABASE_ANON_KEY を自分の値に置き換える。
+  3) Realtime の Broadcast / Presence はデフォルトで有効。追加設定は不要。
+  4) このサンプルは WebRTC シグナリングを Supabase Realtime の channel でやり取りする。
+     ユーザーの「在室（presence）」管理も Realtime 機能を用いる。
+
+  参考: 接続情報をDBに永続化したい場合のテーブル定義例（任意）
+  -- SQL (Supabase SQL Editor に貼り付け)
+  -- これはデモ用で、RLSは非常に緩いので本番では適切な認可実装が必要
+  -- テーブル: public.connections
+  -- 部屋名、ユーザー名、現在の状態を記録（シグナリングSDP/ICEはRealtimeでやるためDB保存は一般に不要）
+  -- 必要なら JSONB で最後のSDPなどを記録することも可能
+
+  -- CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+  -- create table if not exists public.connections (
+  --   id uuid primary key default uuid_generate_v4(),
+  --   room text not null,
+  --   username text not null,
+  --   status text not null default 'joined', -- joined / left
+  --   joined_at timestamptz not null default now(),
+  --   updated_at timestamptz not null default now()
+  -- );
+  -- alter table public.connections enable row level security;
+  -- create policy "allow all for demo" on public.connections
+  --   for all using (true) with check (true);
+*/
+
+body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; background: #f7f9fc; color: #1a1f2b; }
+.container { max-width: 880px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 20px; margin: 0 0 16px; color: #0f172a; }
+.card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.row { display: -webkit-box; display: -ms-flexbox; display: flex; gap: 12px; -ms-flex-align: center; align-items: center; -ms-flex-wrap: wrap; flex-wrap: wrap; }
+.hidden { display: none !important; }
+input[type="text"] { background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; padding: 10px 12px; border-radius: 8px; outline: none; }
+input[type="password"] { background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; padding: 10px 12px; border-radius: 8px; outline: none; }
+input[type="text"]:focus, input[type="password"]:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
+button { background: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+button:disabled { background: #93c5fd; cursor: not-allowed; border-color: #93c5fd; }
+.btn-sec { background: #e5e7eb; color: #111827; border: 1px solid #d1d5db; }
+button:hover { background: #1d4ed8; border-color: #1e40af; }
+.btn-sec:hover { background: #d1d5db; border-color: #9ca3af; }
+.pill { background: #eef2ff; color: #1e3a8a; padding: 6px 10px; border-radius: 999px; font-size: 12px; }
+.muted { color: #64748b; }
+/* Section-specific pill accents */
+#step-config .pill { background: #e0e7ff; color: #3730a3; }
+#step-login .pill { background: #e0f2fe; color: #075985; }
+#step-name .pill { background: #dcfce7; color: #166534; }
+#step-rooms .pill { background: #fef3c7; color: #92400e; }
+#step-in-room .pill { background: #ffe4e6; color: #9f1239; }
+#step-product-search .pill { background: #ede9fe; color: #5b21b6; }
+/* Fallback for older Android: block layout */
+.room-grid { display: block; }
+.room-grid .room { margin-bottom: 12px; }
+/* Enhance when grid is supported */
+@supports (display: grid) {
+  .room-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+  .room-grid .room { margin-bottom: 0; }
+}
+.room { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; display: -webkit-box; display: -ms-flexbox; display: flex; -ms-flex-direction: column; flex-direction: column; gap: 8px; }
+/* Room color variety */
+.room-grid .room:nth-child(1) { background: #f0f9ff; border-color: #bae6fd; }
+.room-grid .room:nth-child(2) { background: #fffbeb; border-color: #fde68a; }
+.room-grid .room:nth-child(3) { background: #ecfdf5; border-color: #86efac; }
+.participants { display: -webkit-box; display: -ms-flexbox; display: flex; gap: 8px; -ms-flex-wrap: wrap; flex-wrap: wrap; }
+.participant { width: 86px; display: -webkit-box; display: -ms-flexbox; display: flex; -ms-flex-direction: column; flex-direction: column; -webkit-box-align: center; -ms-flex-align: center; align-items: center; gap: 6px; }
+.avatar-circle { width: 56px; height: 56px; border-radius: 9999px; background: #e2e8f0; color: #334155; display: -webkit-box; display: -ms-flexbox; display: flex; -webkit-box-align: center; -ms-flex-align: center; align-items: center; -webkit-box-pack: center; -ms-flex-pack: center; justify-content: center; font-weight: 700; border: 2px solid transparent; transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
+.avatar-initials { font-size: 14px; letter-spacing: 0.5px; }
+.participant .label { font-size: 12px; color: #475569; text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avatar-circle.speaking { box-shadow: 0 0 0 3px rgba(37, 99, 235, .2), 0 0 18px rgba(37, 99, 235, .35); border-color: #2563eb; transform: scale(1.06); }
+.stack { display: -webkit-box; display: -ms-flexbox; display: flex; -ms-flex-direction: column; flex-direction: column; gap: 10px; }
+.log { max-height: 200px; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; color: #0f172a; }
+audio { display: none; }
+
+/* Product search */
+.prd-results { margin-top: 8px; overflow-x: auto; }
+.prd-table { width: 100%; border-collapse: collapse; }
+.prd-table th, .prd-table td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #0f172a; }
+.prd-table th { text-align: left; color: #475569; background: #f8fafc; }
+.prd-table tr:hover { background: #f1f5f9; }
+.prd-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #fee2e2; color: #b91c1c; }
+
+/* Bulletin board (read-only) */
+.bulletin-tabs .tab-btn { background: #e2e8f0; border: 1px solid #cbd5e1; color: #0f172a; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.bulletin-tabs .tab-btn.active { background: #2563eb; border-color: #1d4ed8; color: #fff; }
+.bulletin-category .bulletin-items { display: flex; flex-direction: column; gap: 10px; }
+.bulletin-item { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+.bulletin-header { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #64748b; }
+.bulletin-title { margin: 8px 0; font-size: 16px; color: #0f172a; cursor: pointer; }
+.bulletin-title.active { color: #1d4ed8; }
+.bulletin-category .hidden { display: none !important; }
+/* 編集系UIは非表示（読み取り専用） */
+.bulletin-status .edit-btn, .bulletin-status .delete-btn, .bulletin-status .resolve-btn { display: none !important; }
+
+

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://example.com/schemas/ui-permissions.schema.json",
+  "_readme": {
+    "ja": "このファイルは UI の表示/活性（クリック可能）をロール別に制御します。各ルールは CSS セレクタで対象要素を指定し、`visibleFor` と `enabledFor` で許可ロールを列挙します。",
+    "roles": ["administrator", "developer", "staff"],
+    "fields": {
+      "selector": "CSS セレクタ。該当する全要素に適用されます。",
+      "visibleFor": "表示を許可するロールの配列。省略または空配列は『全ロールに許可』として扱われます。",
+      "enabledFor": "活性（クリック可能等）を許可するロールの配列。省略または空配列は『全ロールに許可』として扱われます。"
+    },
+    "notes": [
+      "空配列は『制限なし（全許可）』となります。全員に非表示/無効にしたい場合はコード側の初期状態や別 CSS を利用してください。",
+      "同一要素に対して複数ルールを重ねると読み手が混乱します。なるべく1つのルールにまとめてください。",
+      "一部機能（シフト・在庫など）にはコード側の強制制御があります。必要に応じて `script.js` の `applyUiPermissions` 付近をご確認ください。"
+    ],
+    "examples": [
+      {"目的": "スタッフに非表示", "設定例": {"selector": "#example1", "visibleFor": ["administrator", "developer"]}},
+      {"目的": "スタッフは閲覧のみ（無効）", "設定例": {"selector": "#example2", "visibleFor": ["administrator", "developer", "staff"], "enabledFor": ["administrator", "developer"]}}
+    ]
+  },
+  "roles": ["administrator", "developer", "staff"],
+  "rules": [
+    { "_comment": "シフト管理コンテナ：全ロールに表示。", "selector": "#shift-management", "visibleFor": ["administrator", "developer", "staff"] },
+
+    { "_comment": "シフト登録タブと内容：管理者/開発者のみ表示。", "selector": "button.shift-tab[onclick=\"switchShiftTab('register')\"], #shift-register", "visibleFor": ["administrator", "developer"] },
+    { "_comment": "シフト予定タブと内容：管理者/開発者のみ表示。", "selector": "button.shift-tab[onclick=\"switchShiftTab('schedule')\"], #shift-schedule", "visibleFor": ["administrator", "developer"] },
+    { "_comment": "提出済みシフトタブと内容：管理者/開発者のみ表示。", "selector": "button.shift-tab[onclick=\"switchShiftTab('submitted')\"], #shift-submitted", "visibleFor": ["administrator", "developer"] },
+
+    { "_comment": "振替申請の承認系ボタン：管理者/開発者のみ表示。", "selector": "button.shift-tab[onclick^=\"switchShiftTab('substitution')\"] .request-actions button[onclick^='approveApplication(']", "visibleFor": ["administrator", "developer"] },
+    { "_comment": "すべての承認/却下ボタン（共通）：管理者/開発者のみ表示。", "selector": "button[onclick^='approveApplication('], button[onclick^='rejectApplication('], button[onclick^='unapproveApplication('], button[onclick^='unrejectApplication(']", "visibleFor": ["administrator", "developer"] },
+
+    { "_comment": "募集タブと内容：全ロールに表示（スタッフも閲覧可）。", "selector": "button.shift-tab[onclick=\"switchShiftTab('recruit')\"], #shift-recruit", "visibleFor": ["administrator", "developer", "staff"] },
+    { "_comment": "募集タブを明示的に制限なしとする（空配列＝全許可）。重複設定のため整理候補。", "selector": "button.shift-tab[onclick=\"switchShiftTab('recruit')\"], #shift-recruit", "visibleFor": [] },
+    { "_comment": "募集の新規作成セクション：表示/活性ともに制限なし（空配列）。運用で制限する場合は対象ロールのみを列挙してください。", "selector": "#shift-recruit .recruit-create-section", "visibleFor": [], "enabledFor": [] },
+
+    { "_comment": "ツール内『Coming soon』や特定アイコンはデフォルトで非表示にしたい場合に使用（空配列＝全許可なので、初期 CSS と併用を推奨）。", "selector": ".tools-tab.coming-soon, .tools-tab i.fa-qrcode, .tools-tab i.fa-percentage", "visibleFor": [] },
+
+    { "_comment": "以下3件は上の設定と重複。管理者/開発者のみを再度明記（整理候補）。", "selector": "button.shift-tab[onclick=\"switchShiftTab('register')\"], #shift-register", "visibleFor": ["administrator", "developer"] },
+    { "selector": "button.shift-tab[onclick=\"switchShiftTab('schedule')\"], #shift-schedule", "visibleFor": ["administrator", "developer"] },
+    { "selector": "button.shift-tab[onclick=\"switchShiftTab('submitted')\"], #shift-submitted", "visibleFor": ["administrator", "developer"] },
+
+    { "_comment": "募集作成セクションと募集タブ：制限なし（空配列）。重複設定のため整理候補。", "selector": "#shift-recruit .recruit-create-section, button.shift-tab[onclick=\"switchShiftTab('recruit')\"]", "visibleFor": [] },
+    { "_comment": "募集作成セクション：活性も制限なし。", "selector": "#shift-recruit .recruit-create-section", "enabledFor": [] },
+
+    { "_comment": "募集の承認/却下ボタン（募集用）：管理者/開発者のみ表示。", "selector": "button[onclick^='approveRecruitApplication('], button[onclick^='rejectRecruitApplication('], button[onclick^='unapproveRecruitApplication('], button[onclick^='unrejectRecruitApplication(']", "visibleFor": ["administrator", "developer"] },
+
+    { "_comment": "在庫：登録/一括タブと内容。管理者/開発者のみ表示・活性。", "selector": "button.inventory-tab[onclick=\"switchInventoryTab('register')\"], #inventory-register", "visibleFor": ["administrator", "developer"], "enabledFor": ["administrator", "developer"] },
+    { "_comment": "在庫：一括登録タブと内容。管理者/開発者のみ表示・活性。", "selector": "button.inventory-tab[onclick=\"switchInventoryTab('bulk')\"], #inventory-bulk", "visibleFor": ["administrator", "developer"], "enabledFor": ["administrator", "developer"] },
+
+    { "_comment": "予算タブとリンク：管理者/開発者のみ表示・活性。", "selector": "#budget, [href='#budget']", "visibleFor": ["administrator", "developer"], "enabledFor": ["administrator", "developer"] },
+
+    { "_comment": "掲示板：削除ボタンは管理者/開発者のみ表示。", "selector": ".bulletin-status .delete-btn", "visibleFor": ["developer", "administrator"] },
+
+    { "_comment": "（再掲）共通の承認ボタン：管理者/開発者のみ表示。", "selector": "button[onclick^='approveApplication(']", "visibleFor": ["administrator", "developer"] }
+  ]
+}
